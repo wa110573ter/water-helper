@@ -50,11 +50,11 @@ table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:9px 8px;b
 .cameraSmall{background:#222;color:#fff;border:1px solid #555}
 .cameraCounter{min-width:86px;text-align:center;font-weight:800}
 </style>
-<link rel="manifest" href="manifest.webmanifest?v=4">
-<link rel="apple-touch-icon" href="icon-192.png?v=4">
+<link rel="manifest" href="manifest.webmanifest?v=5">
+<link rel="apple-touch-icon" href="icon-192.png?v=5">
 </head>
 <body>
-<header><div class="head"><div><h1>📸 台水拍單查繳費助手</h1><div class="ver">v4｜虎尾所專用：只辨識 5M 開頭水號</div></div><button class="gray" onclick="resetAll()">清除全部</button></div></header>
+<header><div class="head"><div><h1>📸 台水拍單查繳費助手</h1><div class="ver">v5｜虎尾所停水單專用：自動旋轉，只輸出水號</div></div><button class="gray" onclick="resetAll()">清除全部</button></div></header>
 
 <main>
 <section class="card">
@@ -64,7 +64,7 @@ table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:9px 8px;b
 <label class="btn soft pick">🖼️ 相簿一次選很多張<input id="gallery" type="file" accept="image/*" multiple></label>
 <label class="btn gray pick">單張相機備用<input id="camera" type="file" accept="image/*" capture="environment"></label>
 </div>
-<div class="note">虎尾所專用：只抓 5M 開頭、共 11 碼的水號。照片只在你的裝置內處理；拍攝時請讓水號文字清楚、避免反光。</div>
+<div class="note">虎尾所停水單專用：會自動嘗試四個方向，辨識印刷格式 5M1xx-xxxx-xx-x，並轉成查詢格式 5Mxxxxxxxxx。畫面只顯示最後水號。</div>
 <div class="stats"><span class="pill" id="photoCount">照片 0 張</span><span class="pill" id="ocrCount">已辨識 0 張</span><span class="pill" id="waterCount">有效水號 0 筆</span></div>
 <div class="progress"><div id="ocrBar"></div></div>
 <div class="row"><button class="green" onclick="startOCR()">🤖 開始批次辨識</button><button class="gray" onclick="stopOCR()">停止</button></div>
@@ -125,62 +125,80 @@ let liveStartCount=0;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
 function normalizeWater(s){
-  let n=String(s||"").toUpperCase()
+  return String(s||"").toUpperCase()
     .replace(/[Ｍｍ]/g,"M")
-    .replace(/[\s\-－—_.,:：;；|｜/\\()[\]{}]/g,"")
-    .replace(/[^0-9A-Z]/g,"");
-  if(n.length>=2){
-    const a=n[0],b=n[1];
-    if(/[S５]/.test(a)) n="5"+n.slice(1);
-    if(/[NH]/.test(b)) n=n[0]+"M"+n.slice(2);
-  }
-  return n;
+    .replace(/[５]/g,"5")
+    .replace(/[－—–_]/g,"-")
+    .replace(/\s+/g,"")
+    .replace(/[^0-9A-Z-]/g,"");
 }
-function fixWaterCandidate(s){
-  let n=normalizeWater(s);
-  // 找到最接近 5M 的起點
-  let idx=n.indexOf("5M");
-  if(idx<0){
-    const m=n.match(/[5S][MNH]/);
-    if(m) idx=m.index;
+function digitFix(ch){
+  return ({"O":"0","Q":"0","D":"0","I":"1","L":"1","T":"1","Z":"2","S":"5","B":"8","G":"6"}[ch]||ch);
+}
+function cleanNine(s){
+  const a=String(s||"").toUpperCase().replace(/[^0-9A-Z]/g,"").split("");
+  if(a.length!==9)return "";
+  for(let i=0;i<8;i++){
+    a[i]=digitFix(a[i]);
+    if(!/[0-9]/.test(a[i]))return "";
   }
-  if(idx>=0) n=n.slice(idx);
-  if(n.length<11) return "";
-  n=n.slice(0,11).split("");
-  n[0]="5";
-  n[1]="M";
-  // 第3～10碼通常為數字：修正常見 OCR 誤判
-  for(let i=2;i<=9;i++){
-    n[i]=({"O":"0","Q":"0","D":"0","I":"1","L":"1","T":"1","Z":"2","S":"5","B":"8","G":"6"}[n[i]]||n[i]);
-    if(!/[0-9]/.test(n[i])) return "";
+  a[8]=({"O":"0","I":"1","L":"1"}[a[8]]||a[8]);
+  return /[0-9A-Z]/.test(a[8])?a.join(""):"";
+}
+function toQueryWater(candidate){
+  let n=normalizeWater(candidate).replace(/-/g,"");
+  n=n.replace(/^S[MNH]/,"5M").replace(/^5[NH]/,"5M");
+
+  // 停水單印刷格式：5M1xx-xxxx-xx-x
+  // 例如 5M192-0958-00-6 → 查詢格式 5M920958006
+  if(/^5M[1IL][0-9A-Z]{9}/.test(n)){
+    const body=cleanNine(n.slice(3,12));
+    return body?("5M"+body):"";
   }
-  // 最後一碼檢號可為英數，只做常見全形/誤判整理
-  n[10]=({"O":"0","I":"1","L":"1"}[n[10]]||n[10]);
-  const out=n.join("");
-  return /^5M[0-9]{8}[0-9A-Z]$/.test(out)?out:"";
+
+  // 已經是查詢格式：5M + 9碼
+  if(/^5M[0-9A-Z]{9}/.test(n)){
+    const body=cleanNine(n.slice(2,11));
+    return body?("5M"+body):"";
+  }
+
+  // OCR 漏掉 5M，只讀到印刷格式的 1 + 9碼
+  if(/^[1IL][0-9A-Z]{9}$/.test(n)){
+    const body=cleanNine(n.slice(1));
+    return body?("5M"+body):"";
+  }
+
+  // OCR 只讀到後面9碼，直接補 5M
+  if(/^[0-9A-Z]{9}$/.test(n)){
+    const body=cleanNine(n);
+    return body?("5M"+body):"";
+  }
+  return "";
 }
 function findWater(text){
   const raw=String(text||"").toUpperCase()
     .replace(/[Ｍｍ]/g,"M")
-    .replace(/[Ｏ]/g,"O")
-    .replace(/[ＩＬ]/g,"I")
-    .replace(/[５]/g,"5");
-  const compact=raw.replace(/[^0-9A-Z]/g,"");
+    .replace(/[５]/g,"5")
+    .replace(/[－—–_]/g,"-");
+
   const candidates=[];
 
-  // 先抓明確的 5M 或常見誤判 SM、5N、5H
-  for(const m of compact.matchAll(/[5S][MNH][0-9A-Z]{9,14}/g)){
+  // 優先抓停水單的有橫線格式
+  for(const m of raw.matchAll(/[5S]\s*[MNH]\s*[1IL]?\s*[0-9A-Z]{2,3}\s*[-\s]\s*[0-9A-Z]{4}\s*[-\s]\s*[0-9A-Z]{2}\s*[-\s]\s*[0-9A-Z]/g)){
     candidates.push(m[0]);
   }
 
-  // 再從所有 11～15 碼片段滑動搜尋
-  for(let i=0;i<=compact.length-11;i++){
-    const piece=compact.slice(i,i+15);
-    if(/[5S]/.test(piece[0]) && /[MNH]/.test(piece[1])) candidates.push(piece);
+  // 再抓連續英數格式
+  const compact=raw.replace(/[^0-9A-Z]/g,"");
+  for(const m of compact.matchAll(/[5S][MNH][1IL]?[0-9A-Z]{9}/g)) candidates.push(m[0]);
+
+  // 漏掉 5M 的情況：1+9碼或單獨9碼
+  for(const token of raw.split(/[^0-9A-Z]+/).filter(Boolean)){
+    if(/^[1IL][0-9A-Z]{9}$/.test(token) || /^[0-9A-Z]{9}$/.test(token)) candidates.push(token);
   }
 
   for(const c of candidates){
-    const fixed=fixWaterCandidate(c);
+    const fixed=toQueryWater(c);
     if(fixed) return fixed;
   }
   return "";
@@ -273,48 +291,81 @@ function render(){
     <div class="small">第 ${i+1} 張｜<span class="status ${p.status==="完成"?"ok":p.status.includes("找不到")||p.status==="失敗"?"bad":"warn"}">${esc(p.status)}</span> ${p.progress?`(${p.progress}%)`:""}</div>
     <label class="small">辨識水號（可直接修正）</label>
     <input type="text" inputmode="text" maxlength="11" value="${esc(p.water)}"
-      placeholder="5MXXXXXXXXX" oninput="editField('${p.id}','water',this.value)">
+      placeholder="例如 5M920958006" oninput="editField('${p.id}','water',this.value)">
     <div class="row"><button class="soft" onclick="ocrOne('${p.id}')">重辨識</button><button class="danger" onclick="removePhoto('${p.id}')">刪除</button></div>
   </article>`).join("");
   renderBatch();
 }
-function editField(id,key,val){const p=state.photos.find(x=>x.id===id);if(p){p.water=normalizeWater(val).slice(0,11);renderBatch()}}
+function editField(id,key,val){const p=state.photos.find(x=>x.id===id);if(p){p.water=normalizeWater(val).replace(/-/g,"").slice(0,11);renderBatch()}}
 function removePhoto(id){const i=state.photos.findIndex(x=>x.id===id);if(i>=0){URL.revokeObjectURL(state.photos[i].url);state.photos.splice(i,1);render()}}
-function waters(){return [...new Set(state.photos.map(p=>fixWaterCandidate(p.water)).filter(Boolean))]}
+function waters(){return [...new Set(state.photos.map(p=>toQueryWater(p.water)).filter(Boolean))]}
 
-async function preprocessForWaterOCR(file){
+async function makeOCRCanvas(file,rotation){
   const bmp=await createImageBitmap(file);
-  const maxW=2200;
-  const scale=Math.min(1,maxW/bmp.width);
+  const maxSide=2400;
+  const scale=Math.min(1,maxSide/Math.max(bmp.width,bmp.height));
+  const sw=Math.max(1,Math.round(bmp.width*scale));
+  const sh=Math.max(1,Math.round(bmp.height*scale));
+  const turn=((rotation%360)+360)%360;
   const canvas=document.createElement("canvas");
-  canvas.width=Math.max(1,Math.round(bmp.width*scale));
-  canvas.height=Math.max(1,Math.round(bmp.height*scale));
+  if(turn===90||turn===270){canvas.width=sh;canvas.height=sw}else{canvas.width=sw;canvas.height=sh}
   const ctx=canvas.getContext("2d",{willReadFrequently:true});
-  ctx.drawImage(bmp,0,0,canvas.width,canvas.height);
+  ctx.translate(canvas.width/2,canvas.height/2);
+  ctx.rotate(turn*Math.PI/180);
+  ctx.drawImage(bmp,-sw/2,-sh/2,sw,sh);
+  ctx.setTransform(1,0,0,1,0,0);
+
   const im=ctx.getImageData(0,0,canvas.width,canvas.height);
   const d=im.data;
   for(let i=0;i<d.length;i+=4){
     const g=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
-    const v=g<145?0:g>215?255:Math.max(0,Math.min(255,(g-128)*1.9+128));
+    const v=g<135?0:g>225?255:Math.max(0,Math.min(255,(g-128)*2.15+128));
     d[i]=d[i+1]=d[i+2]=v;
   }
   ctx.putImageData(im,0,0);
   return canvas;
 }
+async function recognizeWaterCanvas(canvas,p,rotationIndex){
+  const ret=await Tesseract.recognize(canvas,"eng",{
+    logger:m=>{
+      if(m.status==="recognizing text"){
+        const local=Math.round((m.progress||0)*25);
+        p.progress=Math.min(99,rotationIndex*25+local);
+        render();
+      }
+    },
+    tessedit_char_whitelist:"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-",
+    tessedit_pageseg_mode:"11",
+    preserve_interword_spaces:"1"
+  });
+  return ret.data.text||"";
+}
 async function ocrOne(id){
   const p=state.photos.find(x=>x.id===id); if(!p)return;
-  p.status="辨識中";p.progress=0;render();
+  p.status="辨識中";p.progress=0;p.water="";render();
   try{
-    const processed=await preprocessForWaterOCR(p.file);
-    const ret=await Tesseract.recognize(processed,"eng",{
-      logger:m=>{if(m.status==="recognizing text"){p.progress=Math.round((m.progress||0)*100);render()}},
-      tessedit_char_whitelist:"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-      preserve_interword_spaces:"1"
-    });
-    p.text=ret.data.text||"";
-    p.water=findWater(p.text);
-    p.status=p.water?"完成":"找不到 5M 水號";
-  }catch(e){p.status="失敗";p.text=(p.text||"")+"\n"+e.message}
+    const rotations=[0,90,270,180];
+    const allText=[];
+    for(let i=0;i<rotations.length;i++){
+      const canvas=await makeOCRCanvas(p.file,rotations[i]);
+      const text=await recognizeWaterCanvas(canvas,p,i);
+      allText.push(text);
+      const found=findWater(text);
+      if(found){
+        p.text=allText.join("\n---\n");
+        p.water=found;
+        p.status="完成";
+        p.progress=100;
+        render();
+        return;
+      }
+    }
+    p.text=allText.join("\n---\n");
+    p.status="找不到水號";
+  }catch(e){
+    p.status="失敗";
+    p.text=(p.text||"")+"\n"+e.message;
+  }
   p.progress=100;render();
 }
 async function startOCR(){
@@ -393,7 +444,7 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     const regs=await navigator.serviceWorker.getRegistrations();
     for(const r of regs) await r.unregister();
-    navigator.serviceWorker.register('./sw.js?v=4').catch(()=>{});
+    navigator.serviceWorker.register('./sw.js?v=5').catch(()=>{});
   });
 }
 </script></body>
