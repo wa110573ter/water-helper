@@ -1,23 +1,242 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0f6cbd"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="繳費查詢"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-192.png"><title>台水繳費查詢助手</title><script src="jszip.min.js"></script><style>
-:root{--bg:#f3f6fa;--card:#fff;--ink:#162033;--muted:#64748b;--line:#d8e1ec;--blue:#0f6cbd;--green:#11875d;--red:#b42318}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif}header{position:sticky;top:0;background:#f3f6faee;backdrop-filter:blur(12px);border-bottom:1px solid var(--line);z-index:3}.head{max-width:1050px;margin:auto;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}h1{font-size:22px;margin:0}main{max-width:1050px;margin:18px auto;padding:0 14px 40px}.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:0 8px 24px #0f172a0d}h2{font-size:19px;margin:0 0 12px}textarea{width:100%;min-height:170px;border:1px solid var(--line);border-radius:13px;padding:13px;font-size:16px;line-height:1.55}.row{display:flex;gap:9px;flex-wrap:wrap;margin-top:11px}.btn,button{border:0;border-radius:12px;padding:12px 15px;font-size:16px;font-weight:650;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:46px}.primary{background:var(--blue);color:#fff}.green{background:var(--green);color:#fff}.soft{background:#e9f2fb;color:#0b5797}.gray{background:#eef1f5;color:#334155}.stats{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.pill{background:#eef3f8;border-radius:999px;padding:7px 11px;font-size:14px}.batch{background:#0f172a;color:#e2e8f0;border-radius:14px;padding:14px;min-height:128px;white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;line-height:1.6}.drop{display:block;border:2px dashed #91a4bb;border-radius:15px;padding:25px;text-align:center;background:#f8fafc}.drop input{display:none}.note{background:#fff7e6;border:1px solid #eed39b;color:#744700;border-radius:12px;padding:12px;line-height:1.65;font-size:14px;margin-top:12px}.tablewrap{overflow:auto;max-height:570px;border:1px solid var(--line);border-radius:13px}table{width:100%;border-collapse:collapse;font-size:14px}th,td{border-bottom:1px solid var(--line);padding:10px 8px;text-align:left;vertical-align:top}th{background:#f1f5f9;position:sticky;top:0}.ok{color:var(--green);font-weight:750}.bad{color:var(--red);font-weight:750}.hidden{display:none}@media(min-width:800px){.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.full{grid-column:1/-1}.card{margin-bottom:0}}
-</style></head><body><header><div class="head"><h1>💧 台水繳費查詢助手</h1><button class="gray" onclick="resetAll()">清除</button></div></header><main><div class="grid">
-<section class="card"><h2>1. 貼上名單</h2><textarea id="source" placeholder="D2-16｜莊宜馨｜5M935233346"></textarea><div class="row"><button class="primary" onclick="parseSource()">整理名單</button><button class="soft" onclick="pasteText()">貼上剪貼簿</button></div><div class="stats"><span class="pill" id="valid">有效 0 筆</span><span class="pill" id="binfo">第 0／0 批</span></div></section>
-<section class="card"><h2>2. 每批 9 筆</h2><div class="batch" id="batch">尚未整理</div><div class="row"><button class="soft" onclick="prev()">上一批</button><button class="soft" onclick="next()">下一批</button><button class="primary" onclick="copyBatch()">複製本批</button></div><div class="row"><a class="btn green" target="_blank" href="https://www.water.gov.tw/ch/EQuery/WaterFeeQuery?nodeId=753">開啟台水查詢頁</a><button class="gray" onclick="done()">標記已查</button></div><div class="note">iPad Safari 不能讓一般網頁直接控制台水網站。請複製本批後，到台水頁面貼入並輸入驗證碼。進度會保留在裝置。</div></section>
-<section class="card full"><h2>3. 匯入台水 ODS，整理最近 2 期</h2><label class="drop"><input id="file" type="file" accept=".ods"><b>點這裡選擇 ODS</b><br>iPad 會開啟「檔案」App</label><div class="stats" id="rstats"></div><div class="tablewrap hidden" id="wrap"><table><thead><tr><th>編號／姓名</th><th>水號</th><th>最近一期</th><th>狀態</th><th>應繳</th><th>前一期</th><th>狀態</th><th>應繳</th></tr></thead><tbody id="body"></tbody></table></div><div class="row"><button id="csv" class="soft hidden" onclick="exportCSV()">匯出 CSV</button></div></section>
-</div></main><script>
-const KEY="tw_water_ipad_v1";let s={source:"",records:[],bi:0,done:[],results:[]};function save(){localStorage.setItem(KEY,JSON.stringify(s))}function load(){try{s={...s,...JSON.parse(localStorage.getItem(KEY)||"{}")}}catch(e){}document.getElementById("source").value=s.source||"";render();if(s.results.length)renderResults()}
-function parseLine(l){const c=l.toUpperCase().replace(/[\s\-－—–_｜|:：,，;；()（）\[\]【】]/g,""),m=c.match(/[0-9A-Z]{11}/);if(!m)return null;const p=l.split(/[｜|]/).map(x=>x.trim()).filter(Boolean);return{water:m[0],code:p.length>=3?p[0]:"",name:p.length>=3?p[1]:(p.length==2?p[0]:"")}}
-function parseSource(){const t=document.getElementById("source").value,a=[],seen=new Set();t.split(/\r?\n/).forEach(l=>{const r=parseLine(l);if(r&&!seen.has(r.water)){seen.add(r.water);a.push(r)}});s.source=t;s.records=a;s.bi=0;s.done=[];save();render()}
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f6cbd">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="繳費查詢">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>台水繳費查詢助手 v2</title>
+<script src="jszip.min.js"></script>
+<style>
+:root{--bg:#f3f6fa;--card:#fff;--ink:#162033;--muted:#64748b;--line:#d8e1ec;--blue:#0f6cbd;--green:#11875d;--red:#b42318;--gold:#a15c00}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif}
+header{position:sticky;top:0;background:#f3f6faee;backdrop-filter:blur(12px);border-bottom:1px solid var(--line);z-index:3}
+.head{max-width:1050px;margin:auto;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+h1{font-size:22px;margin:0} .ver{font-size:12px;color:var(--muted);font-weight:600}
+main{max-width:1050px;margin:18px auto;padding:0 14px 40px}
+.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:0 8px 24px #0f172a0d}
+h2{font-size:19px;margin:0 0 12px}
+textarea{width:100%;min-height:170px;border:1px solid var(--line);border-radius:13px;padding:13px;font-size:16px;line-height:1.55}
+.row{display:flex;gap:9px;flex-wrap:wrap;margin-top:11px}
+.btn,button{border:0;border-radius:12px;padding:12px 15px;font-size:16px;font-weight:650;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:46px;cursor:pointer}
+.primary{background:var(--blue);color:#fff} .green{background:var(--green);color:#fff} .soft{background:#e9f2fb;color:#0b5797} .gray{background:#eef1f5;color:#334155} .gold{background:#fff0d7;color:#7a4300}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0} .pill{background:#eef3f8;border-radius:999px;padding:7px 11px;font-size:14px}
+.batch{background:#0f172a;color:#e2e8f0;border-radius:14px;padding:14px;min-height:128px;white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;line-height:1.6}
+.drop{display:block;border:2px dashed #91a4bb;border-radius:15px;padding:25px;text-align:center;background:#f8fafc} .drop input{display:none}
+.note{background:#fff7e6;border:1px solid #eed39b;color:#744700;border-radius:12px;padding:12px;line-height:1.65;font-size:14px;margin-top:12px}
+.success{background:#eaf8f2;border-color:#9ed8c2;color:#075d3d}
+.tablewrap{overflow:auto;max-height:570px;border:1px solid var(--line);border-radius:13px}
+table{width:100%;border-collapse:collapse;font-size:14px} th,td{border-bottom:1px solid var(--line);padding:10px 8px;text-align:left;vertical-align:top} th{background:#f1f5f9;position:sticky;top:0}
+.ok{color:var(--green);font-weight:750} .bad{color:var(--red);font-weight:750} .hidden{display:none}
+.progress{height:12px;background:#e5eaf0;border-radius:999px;overflow:hidden} .progress>div{height:100%;background:var(--green);width:0;transition:width .2s}
+@media(min-width:800px){.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.full{grid-column:1/-1}.card{margin-bottom:0}}
+@media(max-width:500px){.btn,button{flex:1 1 auto}}
+</style>
+</head>
+<body>
+<header><div class="head"><div><h1>💧 台水繳費查詢助手</h1><div class="ver">v2.0｜iPad 官方 ODS 匯入版</div></div><button class="gray" onclick="resetAll()">清除</button></div></header>
+<main><div class="grid">
+<section class="card">
+<h2>1. 貼上名單</h2>
+<textarea id="source" placeholder="D2-16｜莊宜馨｜5M935233346&#10;D2-17｜劉安泰｜5M934930415"></textarea>
+<div class="row"><button class="primary" onclick="parseSource()">整理名單</button><button class="soft" onclick="pasteText()">貼上剪貼簿</button></div>
+<div class="stats"><span class="pill" id="valid">有效 0 筆</span><span class="pill" id="binfo">第 0／0 批</span><span class="pill" id="dinfo">已查 0 批</span></div>
+<div class="progress"><div id="progressBar"></div></div>
+</section>
+
+<section class="card">
+<h2>2. 每批 9 筆</h2>
+<div class="batch" id="batch">尚未整理</div>
+<div class="row"><button class="soft" onclick="prev()">上一批</button><button class="soft" onclick="next()">下一批</button></div>
+<div class="row">
+<button class="green" onclick="downloadBatchODS()">📥 下載本批官方 ODS</button>
+<button class="primary" onclick="copyBatch()">複製本批</button>
+</div>
+<div class="row"><a class="btn gold" target="_blank" rel="noopener" href="https://www.water.gov.tw/ch/EQuery/WaterFeeQuery?nodeId=753">🌐 開啟台水查詢頁</a><button class="gray" onclick="done()">✓ 標記已查</button></div>
+<div class="note success"><b>iPad 使用順序：</b>下載本批 ODS → 開啟台水查詢頁 → 按「匯入」選擇剛下載的檔案 → 輸入驗證碼 → 查詢。</div>
+</section>
+
+<section class="card full">
+<h2>3. 匯入台水查詢結果 ODS，整理最近 2 期</h2>
+<label class="drop"><input id="file" type="file" accept=".ods"><b>點這裡選擇查詢結果 ODS</b><br>iPad 會開啟「檔案」App</label>
+<div class="stats" id="rstats"></div>
+<div class="tablewrap hidden" id="wrap"><table><thead><tr><th>編號／姓名</th><th>水號</th><th>最近一期</th><th>狀態</th><th>應繳</th><th>前一期</th><th>狀態</th><th>應繳</th></tr></thead><tbody id="body"></tbody></table></div>
+<div class="row"><button id="csv" class="soft hidden" onclick="exportCSV()">匯出 CSV</button></div>
+</section>
+</div></main>
+<script>
+const KEY="tw_water_ipad_v2";
+let s={source:"",records:[],bi:0,done:[],results:[]};
+const ODS_CONTENT="<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<office:document-content xmlns:table=\"urn:oasis:names:tc:opendocument:xmlns:table:1.0\" xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" xmlns:style=\"urn:oasis:names:tc:opendocument:xmlns:style:1.0\" xmlns:draw=\"urn:oasis:names:tc:opendocument:xmlns:drawing:1.0\" xmlns:fo=\"urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:number=\"urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0\" xmlns:svg=\"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0\" xmlns:of=\"urn:oasis:names:tc:opendocument:xmlns:of:1.2\" office:version=\"1.2\"><office:font-face-decls><style:font-face style:name=\"新細明體\" svg:font-family=\"新細明體\"/></office:font-face-decls><office:automatic-styles><style:style style:name=\"ce1\" style:family=\"table-cell\" style:parent-style-name=\"Default\" style:data-style-name=\"N0\"/><style:style style:name=\"ce2\" style:family=\"table-cell\" style:parent-style-name=\"Default\" style:data-style-name=\"N0\"><style:table-cell-properties fo:border=\"thin solid #000000\"/></style:style><style:style style:name=\"co1\" style:family=\"table-column\"><style:table-column-properties fo:break-before=\"auto\" style:column-width=\"2.09020833333333cm\"/></style:style><style:style style:name=\"co2\" style:family=\"table-column\"><style:table-column-properties fo:break-before=\"auto\" style:column-width=\"9.65729166666667cm\"/></style:style><style:style style:name=\"co3\" style:family=\"table-column\"><style:table-column-properties fo:break-before=\"auto\" style:column-width=\"7.64645833333333cm\"/></style:style><style:style style:name=\"co4\" style:family=\"table-column\"><style:table-column-properties fo:break-before=\"auto\" style:column-width=\"1.905cm\"/></style:style><style:style style:name=\"ro1\" style:family=\"table-row\"><style:table-row-properties style:row-height=\"16.5pt\" style:use-optimal-row-height=\"true\" fo:break-before=\"auto\"/></style:style><style:style style:name=\"ta1\" style:family=\"table\" style:master-page-name=\"mp1\"><style:table-properties table:display=\"true\" style:writing-mode=\"lr-tb\"/></style:style></office:automatic-styles><office:body><office:spreadsheet><table:calculation-settings table:case-sensitive=\"false\" table:search-criteria-must-apply-to-whole-cell=\"true\" table:use-wildcards=\"true\" table:use-regular-expressions=\"false\" table:automatic-find-labels=\"false\"/><table:table table:name=\"工作表1\" table:style-name=\"ta1\"><table:table-column table:style-name=\"co1\" table:default-cell-style-name=\"ce1\"/><table:table-column table:style-name=\"co2\" table:default-cell-style-name=\"ce1\"/><table:table-column table:style-name=\"co3\" table:default-cell-style-name=\"ce1\"/><table:table-column table:style-name=\"co4\" table:number-columns-repeated=\"16381\" table:default-cell-style-name=\"ce1\"/><table:table-row table:style-name=\"ro1\"><table:table-cell office:value-type=\"string\" table:style-name=\"ce2\"><text:p>No</text:p></table:table-cell><table:table-cell office:value-type=\"string\" table:style-name=\"ce2\"><text:p>查詢水號</text:p></table:table-cell><table:table-cell office:value-type=\"string\" table:style-name=\"ce2\"><text:p>說明</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"16381\"/></table:table-row><table:table-row table:style-name=\"ro1\"><table:table-cell office:value-type=\"float\" office:value=\"1\" table:style-name=\"ce2\"><text:p>1</text:p></table:table-cell><table:table-cell office:value-type=\"string\" table:style-name=\"ce2\"><text:p>站所(2碼)-編號(8碼)-檢號(1碼) EX：21123456787</text:p></table:table-cell><table:table-cell office:value-type=\"string\" table:style-name=\"ce2\"><text:p>此筆為範例資料，使用時請刪除此筆</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"16381\"/></table:table-row><table:table-row table:style-name=\"ro1\"><table:table-cell office:value-type=\"float\" office:value=\"2\" table:style-name=\"ce2\"><text:p>2</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"2\" table:style-name=\"ce2\"/><table:table-cell table:number-columns-repeated=\"16381\"/></table:table-row><table:table-row table:style-name=\"ro1\"><table:table-cell office:value-type=\"float\" office:value=\"3\" table:style-name=\"ce2\"><text:p>3</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"2\" table:style-name=\"ce2\"/><table:table-cell table:number-columns-repeated=\"16381\"/></table:table-row><table:table-row table:style-name=\"ro1\"><table:table-cell office:value-type=\"float\" office:value=\"4\" table:style-name=\"ce2\"><text:p>4</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"2\" table:style-name=\"ce2\"/><table:table-cell table:number-columns-repeated=\"16381\"/></table:table-row><table:table-row table:style-name=\"ro1\"><table:table-cell office:value-type=\"float\" office:value=\"5\" table:style-name=\"ce2\"><text:p>5</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"2\" table:style-name=\"ce2\"/><table:table-cell table:number-columns-repeated=\"16381\"/></table:table-row><table:table-row table:style-name=\"ro1\"><table:table-cell office:value-type=\"float\" office:value=\"6\" table:style-name=\"ce2\"><text:p>6</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"2\" table:style-name=\"ce2\"/><table:table-cell table:number-columns-repeated=\"16381\"/></table:table-row><table:table-row table:style-name=\"ro1\"><table:table-cell office:value-type=\"float\" office:value=\"7\" table:style-name=\"ce2\"><text:p>7</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"2\" table:style-name=\"ce2\"/><table:table-cell table:number-columns-repeated=\"16381\"/></table:table-row><table:table-row table:style-name=\"ro1\"><table:table-cell office:value-type=\"float\" office:value=\"8\" table:style-name=\"ce2\"><text:p>8</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"2\" table:style-name=\"ce2\"/><table:table-cell table:number-columns-repeated=\"16381\"/></table:table-row><table:table-row table:style-name=\"ro1\"><table:table-cell office:value-type=\"float\" office:value=\"9\" table:style-name=\"ce2\"><text:p>9</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"2\" table:style-name=\"ce2\"/><table:table-cell table:number-columns-repeated=\"16381\"/></table:table-row><table:table-row table:number-rows-repeated=\"1048566\" table:style-name=\"ro1\"><table:table-cell table:number-columns-repeated=\"16384\"/></table:table-row></table:table></office:spreadsheet></office:body></office:document-content>";
+const ODS_STYLES="<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<office:document-styles xmlns:table=\"urn:oasis:names:tc:opendocument:xmlns:table:1.0\" xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" xmlns:style=\"urn:oasis:names:tc:opendocument:xmlns:style:1.0\" xmlns:draw=\"urn:oasis:names:tc:opendocument:xmlns:drawing:1.0\" xmlns:fo=\"urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:number=\"urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0\" xmlns:svg=\"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0\" xmlns:of=\"urn:oasis:names:tc:opendocument:xmlns:of:1.2\" office:version=\"1.2\"><office:font-face-decls><style:font-face style:name=\"新細明體\" svg:font-family=\"新細明體\"/></office:font-face-decls><office:styles><number:number-style style:name=\"N0\"><number:number number:min-integer-digits=\"1\"/></number:number-style><style:style style:name=\"Default\" style:family=\"table-cell\" style:data-style-name=\"N0\"><style:table-cell-properties style:vertical-align=\"middle\" fo:background-color=\"transparent\"/><style:text-properties fo:color=\"#000000\" style:font-name=\"新細明體\" style:font-name-asian=\"新細明體\" style:font-name-complex=\"新細明體\" fo:font-size=\"12pt\" style:font-size-asian=\"12pt\" style:font-size-complex=\"12pt\"/></style:style><style:default-style style:family=\"graphic\"><style:graphic-properties draw:fill=\"solid\" draw:fill-color=\"#4472c4\" draw:opacity=\"100%\" draw:stroke=\"solid\" svg:stroke-width=\"0.01389in\" svg:stroke-color=\"#2f528f\" svg:stroke-opacity=\"100%\" draw:stroke-linejoin=\"miter\" svg:stroke-linecap=\"butt\"/></style:default-style></office:styles><office:automatic-styles><style:page-layout style:name=\"pm1\"><style:page-layout-properties fo:margin-top=\"0.3in\" fo:margin-bottom=\"0.3in\" fo:margin-left=\"0.7in\" fo:margin-right=\"0.7in\" style:print-orientation=\"portrait\" style:print-page-order=\"ttb\" style:first-page-number=\"continue\" style:scale-to=\"100%\" style:table-centering=\"none\" style:print=\"objects charts drawings\"/><style:header-style><style:header-footer-properties fo:min-height=\"0.45in\" fo:margin-left=\"0.7in\" fo:margin-right=\"0.7in\" fo:margin-bottom=\"0in\"/></style:header-style><style:footer-style><style:header-footer-properties fo:min-height=\"0.45in\" fo:margin-left=\"0.7in\" fo:margin-right=\"0.7in\" fo:margin-top=\"0in\"/></style:footer-style></style:page-layout></office:automatic-styles><office:master-styles><style:master-page style:name=\"mp1\" style:page-layout-name=\"pm1\"><style:header/><style:header-left style:display=\"false\"/><style:footer/><style:footer-left style:display=\"false\"/></style:master-page></office:master-styles></office:document-styles>";
+const ODS_META="<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<office:document-meta xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:meta=\"urn:oasis:names:tc:opendocument:xmlns:meta:1.0\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" office:version=\"1.2\"><office:meta><meta:generator>MicrosoftOffice/16.0 MicrosoftExcel/CalculationVersion-22325</meta:generator><meta:initial-creator>Daniel Yei</meta:initial-creator><dc:creator>Administrator</dc:creator><meta:creation-date>2019-10-22T08:59:06Z</meta:creation-date><dc:date>2020-02-18T11:48:58Z</dc:date></office:meta></office:document-meta>";
+const ODS_MANIFEST="<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<manifest:manifest xmlns:manifest=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0\"><manifest:file-entry manifest:full-path=\"/\" manifest:media-type=\"application/vnd.oasis.opendocument.spreadsheet\"/><manifest:file-entry manifest:full-path=\"styles.xml\" manifest:media-type=\"text/xml\"/><manifest:file-entry manifest:full-path=\"content.xml\" manifest:media-type=\"text/xml\"/><manifest:file-entry manifest:full-path=\"meta.xml\" manifest:media-type=\"text/xml\"/></manifest:manifest>";
+const ODS_MIMETYPE="application/vnd.oasis.opendocument.spreadsheet";
+
+function save(){localStorage.setItem(KEY,JSON.stringify(s))}
+function load(){
+  try{
+    const old=JSON.parse(localStorage.getItem(KEY)||"null")||JSON.parse(localStorage.getItem("tw_water_ipad_v1")||"null")||{};
+    s={...s,...old};
+  }catch(e){}
+  document.getElementById("source").value=s.source||"";
+  render();
+  if(s.results.length)renderResults();
+}
+function parseLine(l){
+  const c=l.toUpperCase().replace(/[\s\-－—–_｜|:：,，;；()（）\[\]【】]/g,"");
+  const m=c.match(/[0-9A-Z]{11}/);
+  if(!m)return null;
+  const p=l.split(/[｜|]/).map(x=>x.trim()).filter(Boolean);
+  return{water:m[0],code:p.length>=3?p[0]:"",name:p.length>=3?p[1]:(p.length==2?p[0]:"")};
+}
+function parseSource(){
+  const t=document.getElementById("source").value,a=[],seen=new Set();
+  t.split(/\r?\n/).forEach(l=>{const r=parseLine(l);if(r&&!seen.has(r.water)){seen.add(r.water);a.push(r)}});
+  s.source=t;s.records=a;s.bi=0;s.done=[];save();render();
+}
 async function pasteText(){try{document.getElementById("source").value=await navigator.clipboard.readText()}catch(e){alert("請長按文字框後貼上")}}
-function render(){const n=Math.ceil(s.records.length/9);if(n){s.bi=Math.max(0,Math.min(s.bi,n-1));document.getElementById("batch").textContent=s.records.slice(s.bi*9,s.bi*9+9).map(x=>x.water).join("\n")}else document.getElementById("batch").textContent="尚未整理";document.getElementById("valid").textContent="有效 "+s.records.length+" 筆";document.getElementById("binfo").textContent=n?"第 "+(s.bi+1)+"／"+n+" 批"+(s.done.includes(s.bi)?"（已查）":""):"第 0／0 批";save()}
-function next(){s.bi++;render()}function prev(){s.bi--;render()}async function copyBatch(){const t=s.records.slice(s.bi*9,s.bi*9+9).map(x=>x.water).join("\n");if(!t)return alert("請先整理");try{await navigator.clipboard.writeText(t);alert("已複製")}catch(e){prompt("長按複製",t)}}function done(){if(!s.done.includes(s.bi))s.done.push(s.bi);if((s.bi+1)*9<s.records.length)s.bi++;render()}
-function resetAll(){if(confirm("確定清除所有資料？")){localStorage.removeItem(KEY);location.reload()}}
-function clean(x){return(x||"").toUpperCase().replace(/[^0-9A-Z]/g,"")}function txt(c){let v="";c.querySelectorAll("p").forEach(p=>v+=p.textContent);return v.trim()}
-function rows(xml){const ns="urn:oasis:names:tc:opendocument:xmlns:table:1.0",out=[];for(const r of [...xml.getElementsByTagNameNS(ns,"table-row")]){const vals=[];for(const c of [...r.children].filter(x=>x.localName.includes("table-cell"))){const q=Math.min(parseInt(c.getAttributeNS(ns,"number-columns-repeated")||"1"),50),v=txt(c);for(let i=0;i<q;i++)vals.push(v)}out.push(vals)}return out}
+function currentBatch(){return s.records.slice(s.bi*9,s.bi*9+9)}
+function render(){
+  const n=Math.ceil(s.records.length/9);
+  if(n){
+    s.bi=Math.max(0,Math.min(s.bi,n-1));
+    document.getElementById("batch").textContent=currentBatch().map((x,i)=>`${i+1}. ${x.water}`).join("\n");
+  }else document.getElementById("batch").textContent="尚未整理";
+  document.getElementById("valid").textContent="有效 "+s.records.length+" 筆";
+  document.getElementById("binfo").textContent=n?"第 "+(s.bi+1)+"／"+n+" 批"+(s.done.includes(s.bi)?"（已查）":""):"第 0／0 批";
+  document.getElementById("dinfo").textContent="已查 "+s.done.length+" 批";
+  document.getElementById("progressBar").style.width=(n?Math.round(s.done.length/n*100):0)+"%";
+  save();
+}
+function next(){s.bi++;render()} function prev(){s.bi--;render()}
+async function copyBatch(){
+  const t=currentBatch().map(x=>x.water).join("\n");if(!t)return alert("請先整理名單");
+  try{await navigator.clipboard.writeText(t);alert("已複製本批 "+currentBatch().length+" 筆")}catch(e){prompt("長按複製",t)}
+}
+function done(){if(!s.records.length)return alert("請先整理名單");if(!s.done.includes(s.bi))s.done.push(s.bi);if((s.bi+1)*9<s.records.length)s.bi++;render()}
+function resetAll(){if(confirm("確定清除所有資料與進度？")){localStorage.removeItem(KEY);localStorage.removeItem("tw_water_ipad_v1");location.reload()}}
+
+function setCellText(cell,value){
+  const TABLE="urn:oasis:names:tc:opendocument:xmlns:table:1.0";
+  const OFFICE="urn:oasis:names:tc:opendocument:xmlns:office:1.0";
+  const TEXT="urn:oasis:names:tc:opendocument:xmlns:text:1.0";
+  cell.removeAttributeNS(TABLE,"number-columns-repeated");
+  cell.setAttributeNS(OFFICE,"office:value-type","string");
+  while(cell.firstChild)cell.removeChild(cell.firstChild);
+  const p=cell.ownerDocument.createElementNS(TEXT,"text:p");
+  p.textContent=value||"";
+  cell.appendChild(p);
+}
+function buildODSContent(waters){
+  const parser=new DOMParser();
+  const doc=parser.parseFromString(ODS_CONTENT,"application/xml");
+  if(doc.querySelector("parsererror"))throw new Error("ODS 範本解析失敗");
+  const TABLE="urn:oasis:names:tc:opendocument:xmlns:table:1.0";
+  const OFFICE="urn:oasis:names:tc:opendocument:xmlns:office:1.0";
+  const TEXT="urn:oasis:names:tc:opendocument:xmlns:text:1.0";
+  const rows=[...doc.getElementsByTagNameNS(TABLE,"table-row")];
+  for(let i=1;i<=9;i++){
+    const row=rows[i];
+    const old=[...row.children].filter(x=>x.namespaceURI===TABLE&&x.localName==="table-cell");
+    while(row.firstChild)row.removeChild(row.firstChild);
+    const no=doc.createElementNS(TABLE,"table:table-cell");
+    no.setAttributeNS(OFFICE,"office:value-type","float");
+    no.setAttributeNS(OFFICE,"office:value",String(i));
+    no.setAttributeNS(TABLE,"table:style-name","ce2");
+    const p1=doc.createElementNS(TEXT,"text:p");p1.textContent=String(i);no.appendChild(p1);
+    const water=doc.createElementNS(TABLE,"table:table-cell");
+    water.setAttributeNS(OFFICE,"office:value-type","string");
+    water.setAttributeNS(TABLE,"table:style-name","ce2");
+    const p2=doc.createElementNS(TEXT,"text:p");p2.textContent=waters[i-1]||"";water.appendChild(p2);
+    const note=doc.createElementNS(TABLE,"table:table-cell");
+    note.setAttributeNS(OFFICE,"office:value-type","string");
+    note.setAttributeNS(TABLE,"table:style-name","ce2");
+    note.appendChild(doc.createElementNS(TEXT,"text:p"));
+    const tail=doc.createElementNS(TABLE,"table:table-cell");
+    tail.setAttributeNS(TABLE,"table:number-columns-repeated","16381");
+    row.append(no,water,note,tail);
+  }
+  return new XMLSerializer().serializeToString(doc);
+}
+async function downloadBatchODS(){
+  const waters=currentBatch().map(x=>x.water);
+  if(!waters.length)return alert("請先整理名單");
+  if(typeof JSZip==="undefined")return alert("ODS 元件尚未載入，請重新整理頁面");
+  try{
+    const zip=new JSZip();
+    zip.file("mimetype",ODS_MIMETYPE,{compression:"STORE"});
+    zip.file("styles.xml",ODS_STYLES);
+    zip.file("content.xml",buildODSContent(waters));
+    zip.folder("META-INF").file("manifest.xml",ODS_MANIFEST);
+    zip.file("meta.xml",ODS_META);
+    const blob=await zip.generateAsync({type:"blob",mimeType:ODS_MIMETYPE,compression:"DEFLATE"});
+    const a=document.createElement("a");
+    const num=String(s.bi+1).padStart(2,"0");
+    a.href=URL.createObjectURL(blob);
+    a.download=`第${num}批_台水查詢匯入.ods`;
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+  }catch(err){alert("ODS 產生失敗："+err.message)}
+}
+
+function clean(x){return(x||"").toUpperCase().replace(/[^0-9A-Z]/g,"")}
+function txt(c){let v="";c.querySelectorAll("p").forEach(p=>v+=p.textContent);return v.trim()}
+function rows(xml){
+  const ns="urn:oasis:names:tc:opendocument:xmlns:table:1.0",out=[];
+  for(const r of [...xml.getElementsByTagNameNS(ns,"table-row")]){
+    const vals=[];
+    for(const c of [...r.children].filter(x=>x.localName.includes("table-cell"))){
+      const q=Math.min(parseInt(c.getAttributeNS(ns,"number-columns-repeated")||"1"),50),v=txt(c);
+      for(let i=0;i<q;i++)vals.push(v);
+    }
+    out.push(vals);
+  }
+  return out;
+}
 function stat(r){return r&&((r.status||"").includes("已繳")||r.paid||r.date)?"已繳":"未顯示已繳"}
-document.getElementById("file").addEventListener("change",async e=>{const f=e.target.files[0];if(!f)return;try{const z=await JSZip.loadAsync(await f.arrayBuffer()),x=new DOMParser().parseFromString(await z.file("content.xml").async("string"),"application/xml"),rs=rows(x);let gs=[],cur=null,head=false;for(const r of rs){const a=(r[0]||"").trim();if(/^水號[:：]/.test(a)){if(cur)gs.push(cur);cur={water:clean(a.replace(/^水號[:：]/,"")),rec:[]};head=false}else if(cur&&a==="繳費年月")head=true;else if(cur&&head&&/^\d{4}\/\d{1,2}$/.test(a))cur.rec.push({period:a,due:r[3]||"",paid:r[4]||"",date:r[5]||"",status:r[6]||""})}if(cur)gs.push(cur);const map=new Map(s.records.map(r=>[r.water,r]));s.results=gs.map(g=>{const q=g.rec.sort((a,b)=>b.period.localeCompare(a.period)).slice(0,2),m=map.get(g.water)||{};return{water:g.water,code:m.code||"",name:m.name||"",r1:q[0]||null,r2:q[1]||null}});save();renderResults()}catch(err){alert("ODS 讀取失敗："+err.message)}})
-function esc(v){return String(v||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}function renderResults(){const b=document.getElementById("body");b.innerHTML="";let p=0,u=0;s.results.forEach(x=>{stat(x.r1)==="已繳"?p++:u++;const tr=document.createElement("tr");tr.innerHTML=`<td>${esc([x.code,x.name].filter(Boolean).join(" "))}</td><td>${x.water}</td><td>${esc(x.r1?.period)}</td><td class="${stat(x.r1)==="已繳"?"ok":"bad"}">${stat(x.r1)}</td><td>${esc(x.r1?.due)}</td><td>${esc(x.r2?.period)}</td><td class="${stat(x.r2)==="已繳"?"ok":"bad"}">${stat(x.r2)}</td><td>${esc(x.r2?.due)}</td>`;b.appendChild(tr)});document.getElementById("rstats").innerHTML=`<span class="pill">共 ${s.results.length} 戶</span><span class="pill">最近一期已繳 ${p}</span><span class="pill">未顯示已繳 ${u}</span>`;document.getElementById("wrap").classList.remove("hidden");document.getElementById("csv").classList.remove("hidden")}
-function exportCSV(){const a=[["編號","姓名","水號","最近一期","狀態","應繳","前一期","狀態","應繳"]];s.results.forEach(x=>a.push([x.code,x.name,x.water,x.r1?.period||"",stat(x.r1),x.r1?.due||"",x.r2?.period||"",stat(x.r2),x.r2?.due||""]));const csv="\ufeff"+a.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\r\n"),l=document.createElement("a");l.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));l.download="台水最近2期.csv";l.click()}
-if("serviceWorker"in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js");load();
-</script></body></html>
+document.getElementById("file").addEventListener("change",async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    const z=await JSZip.loadAsync(await f.arrayBuffer());
+    const contentFile=z.file("content.xml");if(!contentFile)throw new Error("不是有效的 ODS");
+    const x=new DOMParser().parseFromString(await contentFile.async("string"),"application/xml"),rs=rows(x);
+    let gs=[],cur=null,head=false;
+    for(const r of rs){
+      const a=(r[0]||"").trim();
+      if(/^水號[:：]/.test(a)){if(cur)gs.push(cur);cur={water:clean(a.replace(/^水號[:：]/,"")),rec:[]};head=false}
+      else if(cur&&a==="繳費年月")head=true;
+      else if(cur&&head&&/^\d{4}\/\d{1,2}$/.test(a))cur.rec.push({period:a,due:r[3]||"",paid:r[4]||"",date:r[5]||"",status:r[6]||""});
+    }
+    if(cur)gs.push(cur);
+    const map=new Map(s.records.map(r=>[r.water,r]));
+    s.results=gs.map(g=>{const q=g.rec.sort((a,b)=>b.period.localeCompare(a.period)).slice(0,2),m=map.get(g.water)||{};return{water:g.water,code:m.code||"",name:m.name||"",r1:q[0]||null,r2:q[1]||null}});
+    save();renderResults();
+  }catch(err){alert("ODS 讀取失敗："+err.message)}
+});
+function esc(v){return String(v||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}
+function renderResults(){
+  const b=document.getElementById("body");b.innerHTML="";let p=0,u=0;
+  s.results.forEach(x=>{
+    stat(x.r1)==="已繳"?p++:u++;
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${esc([x.code,x.name].filter(Boolean).join(" "))}</td><td>${x.water}</td><td>${esc(x.r1?.period)}</td><td class="${stat(x.r1)==="已繳"?"ok":"bad"}">${stat(x.r1)}</td><td>${esc(x.r1?.due)}</td><td>${esc(x.r2?.period)}</td><td class="${stat(x.r2)==="已繳"?"ok":"bad"}">${stat(x.r2)}</td><td>${esc(x.r2?.due)}</td>`;
+    b.appendChild(tr);
+  });
+  document.getElementById("rstats").innerHTML=`<span class="pill">共 ${s.results.length} 戶</span><span class="pill">最近一期已繳 ${p}</span><span class="pill">未顯示已繳 ${u}</span>`;
+  document.getElementById("wrap").classList.remove("hidden");document.getElementById("csv").classList.remove("hidden");
+}
+function exportCSV(){
+  const a=[["編號","姓名","水號","最近一期","狀態","應繳","前一期","狀態","應繳"]];
+  s.results.forEach(x=>a.push([x.code,x.name,x.water,x.r1?.period||"",stat(x.r1),x.r1?.due||"",x.r2?.period||"",stat(x.r2),x.r2?.due||""]));
+  const csv="\ufeff"+a.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\r\n");
+  const l=document.createElement("a");l.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));l.download="台水最近2期.csv";l.click();
+}
+if("serviceWorker"in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js");
+load();
+</script>
+</body></html>

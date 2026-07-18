@@ -1,7 +1,7 @@
 {
-  "name": "台水繳費查詢助手",
+  "name": "台水繳費查詢助手 v2",
   "short_name": "繳費查詢",
-  "start_url": "./index.html",
+  "start_url": "./?v=2",
   "display": "standalone",
   "background_color": "#f3f6fa",
   "theme_color": "#0f6cbd",
