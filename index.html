@@ -50,11 +50,11 @@ table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:9px 8px;b
 .cameraSmall{background:#222;color:#fff;border:1px solid #555}
 .cameraCounter{min-width:86px;text-align:center;font-weight:800}
 </style>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest?v=4">
+<link rel="apple-touch-icon" href="icon-192.png?v=4">
 </head>
 <body>
-<header><div class="head"><div><h1>📸 台水拍單查繳費助手</h1><div class="ver">v3｜拍照 OCR → 水號 → 官方 ODS → 匯入結果</div></div><button class="gray" onclick="resetAll()">清除全部</button></div></header>
+<header><div class="head"><div><h1>📸 台水拍單查繳費助手</h1><div class="ver">v4｜虎尾所專用：只辨識 5M 開頭水號</div></div><button class="gray" onclick="resetAll()">清除全部</button></div></header>
 
 <main>
 <section class="card">
@@ -64,7 +64,7 @@ table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:9px 8px;b
 <label class="btn soft pick">🖼️ 相簿一次選很多張<input id="gallery" type="file" accept="image/*" multiple></label>
 <label class="btn gray pick">單張相機備用<input id="camera" type="file" accept="image/*" capture="environment"></label>
 </div>
-<div class="note">照片只在你的裝置瀏覽器內處理。第一次 OCR 會下載辨識模型，需有網路。單張照片盡量拍正、拍清楚、不要反光。</div>
+<div class="note">虎尾所專用：只抓 5M 開頭、共 11 碼的水號。照片只在你的裝置內處理；拍攝時請讓水號文字清楚、避免反光。</div>
 <div class="stats"><span class="pill" id="photoCount">照片 0 張</span><span class="pill" id="ocrCount">已辨識 0 張</span><span class="pill" id="waterCount">有效水號 0 筆</span></div>
 <div class="progress"><div id="ocrBar"></div></div>
 <div class="row"><button class="green" onclick="startOCR()">🤖 開始批次辨識</button><button class="gray" onclick="stopOCR()">停止</button></div>
@@ -92,7 +92,7 @@ table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:9px 8px;b
 <label class="btn soft pick">📂 選擇查詢結果 ODS<input id="resultFile" type="file" accept=".ods"></label>
 <div id="resultStats" class="stats"></div>
 <div id="resultWrap" class="tablewrap hidden">
-<table><thead><tr><th>水號</th><th>姓名</th><th>地址</th><th>期別</th><th>狀態</th><th>金額</th><th>銷帳日</th></tr></thead><tbody id="resultBody"></tbody></table>
+<table><thead><tr><th>水號</th><th>期別</th><th>狀態</th><th>金額</th><th>銷帳日</th></tr></thead><tbody id="resultBody"></tbody></table>
 </div>
 <div class="row"><button id="csvBtn" class="soft hidden" onclick="exportCSV()">匯出 CSV</button></div>
 </section>
@@ -124,37 +124,71 @@ let liveFacing="environment";
 let liveStartCount=0;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
-function normalizeWater(s){return String(s||"").toUpperCase().replace(/[\s\-－—_]/g,"").replace(/[^0-9A-Z]/g,"")}
-function findWater(text){
-  const raw=String(text||"").toUpperCase().replace(/[ＯO]/g,"0").replace(/[ＩIＬL]/g,"1").replace(/[Ｂ]/g,"8").replace(/[Ｓ]/g,"5");
-  const candidates=raw.match(/[0-9A-ZＭｍ][0-9A-ZＭｍ\-\s]{8,18}/g)||[];
-  const scored=[];
-  for(const c of candidates){
-    let n=normalizeWater(c).replace(/Ｍ/g,"M");
-    const hits=n.match(/[0-9][0-9A-Z]{9,12}/g)||[];
-    for(const h of hits){
-      if(h.length>=10&&h.length<=13&&/[A-Z]/.test(h)) scored.push(h);
-    }
+function normalizeWater(s){
+  let n=String(s||"").toUpperCase()
+    .replace(/[Ｍｍ]/g,"M")
+    .replace(/[\s\-－—_.,:：;；|｜/\\()[\]{}]/g,"")
+    .replace(/[^0-9A-Z]/g,"");
+  if(n.length>=2){
+    const a=n[0],b=n[1];
+    if(/[S５]/.test(a)) n="5"+n.slice(1);
+    if(/[NH]/.test(b)) n=n[0]+"M"+n.slice(2);
   }
-  const all=[...new Set(scored)];
-  return all.sort((a,b)=>Math.abs(a.length-11)-Math.abs(b.length-11))[0]||"";
+  return n;
 }
-function guessName(text){
-  const lines=String(text||"").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
-  for(const l of lines){
-    const m=l.match(/(?:用戶名稱|用戶姓名|姓名)[:：\s]*([\u4e00-\u9fff]{2,6})/);
-    if(m)return m[1];
+function fixWaterCandidate(s){
+  let n=normalizeWater(s);
+  // 找到最接近 5M 的起點
+  let idx=n.indexOf("5M");
+  if(idx<0){
+    const m=n.match(/[5S][MNH]/);
+    if(m) idx=m.index;
+  }
+  if(idx>=0) n=n.slice(idx);
+  if(n.length<11) return "";
+  n=n.slice(0,11).split("");
+  n[0]="5";
+  n[1]="M";
+  // 第3～10碼通常為數字：修正常見 OCR 誤判
+  for(let i=2;i<=9;i++){
+    n[i]=({"O":"0","Q":"0","D":"0","I":"1","L":"1","T":"1","Z":"2","S":"5","B":"8","G":"6"}[n[i]]||n[i]);
+    if(!/[0-9]/.test(n[i])) return "";
+  }
+  // 最後一碼檢號可為英數，只做常見全形/誤判整理
+  n[10]=({"O":"0","I":"1","L":"1"}[n[10]]||n[10]);
+  const out=n.join("");
+  return /^5M[0-9]{8}[0-9A-Z]$/.test(out)?out:"";
+}
+function findWater(text){
+  const raw=String(text||"").toUpperCase()
+    .replace(/[Ｍｍ]/g,"M")
+    .replace(/[Ｏ]/g,"O")
+    .replace(/[ＩＬ]/g,"I")
+    .replace(/[５]/g,"5");
+  const compact=raw.replace(/[^0-9A-Z]/g,"");
+  const candidates=[];
+
+  // 先抓明確的 5M 或常見誤判 SM、5N、5H
+  for(const m of compact.matchAll(/[5S][MNH][0-9A-Z]{9,14}/g)){
+    candidates.push(m[0]);
+  }
+
+  // 再從所有 11～15 碼片段滑動搜尋
+  for(let i=0;i<=compact.length-11;i++){
+    const piece=compact.slice(i,i+15);
+    if(/[5S]/.test(piece[0]) && /[MNH]/.test(piece[1])) candidates.push(piece);
+  }
+
+  for(const c of candidates){
+    const fixed=fixWaterCandidate(c);
+    if(fixed) return fixed;
   }
   return "";
-}
-function guessAddress(text){
-  const lines=String(text||"").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
-  return lines.find(l=>/(縣|市).*(鄉|鎮|市|區).*(路|街|巷|村|里|號)/.test(l))||"";
 }
 async function addFiles(list){
   for(const f of [...list]){
     const url=URL.createObjectURL(f);
-    state.photos.push({id:crypto.randomUUID(),file:f,url,text:"",water:"",name:"",address:"",status:"待辨識",progress:0});
+    state.photos.push({id:crypto.randomUUID(),file:f,url,text:"",water:"",status:"待辨識",progress:0});
   }
   render();
 }
@@ -236,28 +270,50 @@ function render(){
   $("photoGrid").innerHTML=state.photos.map((p,i)=>`
   <article class="photo">
     <img src="${p.url}" alt="第${i+1}張">
-    <div class="small">第 ${i+1} 張｜<span class="status ${p.status==="完成"?"ok":p.status==="失敗"?"bad":"warn"}">${esc(p.status)}</span> ${p.progress?`(${p.progress}%)`:""}</div>
-    <label class="small">水號</label><input type="text" value="${esc(p.water)}" oninput="editField('${p.id}','water',this.value)">
-    <label class="small">姓名</label><input type="text" value="${esc(p.name)}" oninput="editField('${p.id}','name',this.value)">
-    <label class="small">地址</label><input type="text" value="${esc(p.address)}" oninput="editField('${p.id}','address',this.value)">
-    <details><summary class="small">查看 OCR 文字</summary><textarea rows="5">${esc(p.text)}</textarea></details>
+    <div class="small">第 ${i+1} 張｜<span class="status ${p.status==="完成"?"ok":p.status.includes("找不到")||p.status==="失敗"?"bad":"warn"}">${esc(p.status)}</span> ${p.progress?`(${p.progress}%)`:""}</div>
+    <label class="small">辨識水號（可直接修正）</label>
+    <input type="text" inputmode="text" maxlength="11" value="${esc(p.water)}"
+      placeholder="5MXXXXXXXXX" oninput="editField('${p.id}','water',this.value)">
     <div class="row"><button class="soft" onclick="ocrOne('${p.id}')">重辨識</button><button class="danger" onclick="removePhoto('${p.id}')">刪除</button></div>
   </article>`).join("");
   renderBatch();
 }
-function editField(id,key,val){const p=state.photos.find(x=>x.id===id);if(p){p[key]=key==="water"?normalizeWater(val):val;renderBatch()}}
+function editField(id,key,val){const p=state.photos.find(x=>x.id===id);if(p){p.water=normalizeWater(val).slice(0,11);renderBatch()}}
 function removePhoto(id){const i=state.photos.findIndex(x=>x.id===id);if(i>=0){URL.revokeObjectURL(state.photos[i].url);state.photos.splice(i,1);render()}}
-function waters(){return [...new Set(state.photos.map(p=>normalizeWater(p.water)).filter(x=>x.length>=10))]}
+function waters(){return [...new Set(state.photos.map(p=>fixWaterCandidate(p.water)).filter(Boolean))]}
+
+async function preprocessForWaterOCR(file){
+  const bmp=await createImageBitmap(file);
+  const maxW=2200;
+  const scale=Math.min(1,maxW/bmp.width);
+  const canvas=document.createElement("canvas");
+  canvas.width=Math.max(1,Math.round(bmp.width*scale));
+  canvas.height=Math.max(1,Math.round(bmp.height*scale));
+  const ctx=canvas.getContext("2d",{willReadFrequently:true});
+  ctx.drawImage(bmp,0,0,canvas.width,canvas.height);
+  const im=ctx.getImageData(0,0,canvas.width,canvas.height);
+  const d=im.data;
+  for(let i=0;i<d.length;i+=4){
+    const g=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+    const v=g<145?0:g>215?255:Math.max(0,Math.min(255,(g-128)*1.9+128));
+    d[i]=d[i+1]=d[i+2]=v;
+  }
+  ctx.putImageData(im,0,0);
+  return canvas;
+}
 async function ocrOne(id){
   const p=state.photos.find(x=>x.id===id); if(!p)return;
   p.status="辨識中";p.progress=0;render();
   try{
-    const ret=await Tesseract.recognize(p.file,"chi_tra+eng",{logger:m=>{if(m.status==="recognizing text"){p.progress=Math.round((m.progress||0)*100);render()}}});
+    const processed=await preprocessForWaterOCR(p.file);
+    const ret=await Tesseract.recognize(processed,"eng",{
+      logger:m=>{if(m.status==="recognizing text"){p.progress=Math.round((m.progress||0)*100);render()}},
+      tessedit_char_whitelist:"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+      preserve_interword_spaces:"1"
+    });
     p.text=ret.data.text||"";
     p.water=findWater(p.text);
-    p.name=guessName(p.text);
-    p.address=guessAddress(p.text);
-    p.status=p.water?"完成":"失敗";
+    p.status=p.water?"完成":"找不到 5M 水號";
   }catch(e){p.status="失敗";p.text=(p.text||"")+"\n"+e.message}
   p.progress=100;render();
 }
@@ -311,19 +367,18 @@ $("resultFile").addEventListener("change",async e=>{
       const amount=(joined.match(/(?:應繳金額|金額)[:：\s]*([\d,]+)/)||[])[1]||"";
       const period=(joined.match(/(20\d{2}[\/\-]\d{1,2}|民國?\s*\d{2,3}[\/\-]\d{1,2})/)||[])[1]||"";
       const paid=(joined.match(/(?:銷帳日|繳費日)[:：\s]*([0-9\/\-]+)/)||[])[1]||"";
-      const p=state.photos.find(x=>normalizeWater(x.water)===water);
-      out.push({water,name:p?.name||"",address:p?.address||"",period,status,amount,paid,raw:joined});
+      out.push({water,period,status,amount,paid,raw:joined});
     }
     state.results=out;renderResults();
   }catch(err){alert("讀取 ODS 失敗："+err.message)}
 });
 function renderResults(){
   $("resultStats").innerHTML=`<span class="pill">共 ${state.results.length} 筆</span><span class="pill">已繳 ${state.results.filter(x=>x.status==="已繳").length} 筆</span><span class="pill">未繳 ${state.results.filter(x=>x.status==="未繳").length} 筆</span>`;
-  $("resultBody").innerHTML=state.results.map(r=>`<tr><td>${esc(r.water)}</td><td>${esc(r.name)}</td><td>${esc(r.address)}</td><td>${esc(r.period)}</td><td class="${r.status==="已繳"?"ok":r.status==="未繳"?"bad":"warn"}">${esc(r.status)}</td><td>${esc(r.amount)}</td><td>${esc(r.paid)}</td></tr>`).join("");
+  $("resultBody").innerHTML=state.results.map(r=>`<tr><td>${esc(r.water)}</td><td>${esc(r.period)}</td><td class="${r.status==="已繳"?"ok":r.status==="未繳"?"bad":"warn"}">${esc(r.status)}</td><td>${esc(r.amount)}</td><td>${esc(r.paid)}</td></tr>`).join("");
   $("resultWrap").classList.toggle("hidden",!state.results.length);$("csvBtn").classList.toggle("hidden",!state.results.length);
 }
 function exportCSV(){
-  const rows=[["水號","姓名","地址","期別","狀態","金額","銷帳日"],...state.results.map(r=>[r.water,r.name,r.address,r.period,r.status,r.amount,r.paid])];
+  const rows=[["水號","期別","狀態","金額","銷帳日"],...state.results.map(r=>[r.water,r.period,r.status,r.amount,r.paid])];
   const csv="\ufeff"+rows.map(r=>r.map(v=>`"${String(v||"").replace(/"/g,'""')}"`).join(",")).join("\r\n");
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download="台水查繳費結果.csv";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
@@ -335,8 +390,11 @@ render();renderResults();
 </script>
 <script>
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+  window.addEventListener('load', async () => {
+    const regs=await navigator.serviceWorker.getRegistrations();
+    for(const r of regs) await r.unregister();
+    navigator.serviceWorker.register('./sw.js?v=4').catch(()=>{});
+  });
 }
-</script>
-</body>
+</script></body>
 </html>
