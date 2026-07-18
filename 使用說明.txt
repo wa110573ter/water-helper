@@ -1,0 +1,21 @@
+台水拍單查繳費助手 iPhone 版
+
+上傳方式：
+1. 打開 GitHub repository：wa110573ter/water-helper
+2. 刪除舊檔，或直接上傳這個資料夾內全部檔案
+3. 確認首頁檔名是 index.html
+4. GitHub Pages 來源設為 main branch / root
+5. 等待約 1–3 分鐘後開啟：
+   https://wa110573ter.github.io/water-helper/
+
+iPhone 使用：
+1. 請用 Safari 開啟網址
+2. 第一次使用相機時按「允許」
+3. Safari 分享 → 加入主畫面
+4. 「開啟連續相機」可在同一相機畫面連拍多張
+5. 拍完按「完成辨識」
+
+注意：
+- OCR 由瀏覽器載入辨識模型，第一次需網路且會比較慢。
+- 台水官網仍需輸入驗證碼。
+- 照片在本機瀏覽器處理，不會自動上傳到 GitHub。

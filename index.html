@@ -5,238 +5,338 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f6cbd">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="繳費查詢">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icon-192.png">
-<title>台水繳費查詢助手 v2</title>
-<script src="jszip.min.js"></script>
+<meta name="apple-mobile-web-app-title" content="拍單查繳費">
+<title>台水拍單查繳費助手 v3</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
 :root{--bg:#f3f6fa;--card:#fff;--ink:#162033;--muted:#64748b;--line:#d8e1ec;--blue:#0f6cbd;--green:#11875d;--red:#b42318;--gold:#a15c00}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif}
-header{position:sticky;top:0;background:#f3f6faee;backdrop-filter:blur(12px);border-bottom:1px solid var(--line);z-index:3}
-.head{max-width:1050px;margin:auto;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px}
-h1{font-size:22px;margin:0} .ver{font-size:12px;color:var(--muted);font-weight:600}
-main{max-width:1050px;margin:18px auto;padding:0 14px 40px}
-.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:0 8px 24px #0f172a0d}
-h2{font-size:19px;margin:0 0 12px}
-textarea{width:100%;min-height:170px;border:1px solid var(--line);border-radius:13px;padding:13px;font-size:16px;line-height:1.55}
-.row{display:flex;gap:9px;flex-wrap:wrap;margin-top:11px}
-.btn,button{border:0;border-radius:12px;padding:12px 15px;font-size:16px;font-weight:650;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:46px;cursor:pointer}
-.primary{background:var(--blue);color:#fff} .green{background:var(--green);color:#fff} .soft{background:#e9f2fb;color:#0b5797} .gray{background:#eef1f5;color:#334155} .gold{background:#fff0d7;color:#7a4300}
-.stats{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0} .pill{background:#eef3f8;border-radius:999px;padding:7px 11px;font-size:14px}
-.batch{background:#0f172a;color:#e2e8f0;border-radius:14px;padding:14px;min-height:128px;white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;line-height:1.6}
-.drop{display:block;border:2px dashed #91a4bb;border-radius:15px;padding:25px;text-align:center;background:#f8fafc} .drop input{display:none}
-.note{background:#fff7e6;border:1px solid #eed39b;color:#744700;border-radius:12px;padding:12px;line-height:1.65;font-size:14px;margin-top:12px}
-.success{background:#eaf8f2;border-color:#9ed8c2;color:#075d3d}
-.tablewrap{overflow:auto;max-height:570px;border:1px solid var(--line);border-radius:13px}
-table{width:100%;border-collapse:collapse;font-size:14px} th,td{border-bottom:1px solid var(--line);padding:10px 8px;text-align:left;vertical-align:top} th{background:#f1f5f9;position:sticky;top:0}
-.ok{color:var(--green);font-weight:750} .bad{color:var(--red);font-weight:750} .hidden{display:none}
-.progress{height:12px;background:#e5eaf0;border-radius:999px;overflow:hidden} .progress>div{height:100%;background:var(--green);width:0;transition:width .2s}
-@media(min-width:800px){.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.full{grid-column:1/-1}.card{margin-bottom:0}}
-@media(max-width:500px){.btn,button{flex:1 1 auto}}
+header{position:sticky;top:0;z-index:5;background:#f3f6faee;backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.head{max-width:1120px;margin:auto;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+h1{font-size:21px;margin:0}.ver{font-size:12px;color:var(--muted)}
+main{max-width:1120px;margin:16px auto;padding:0 12px 50px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 8px 24px #0f172a0d}
+h2{font-size:18px;margin:0 0 10px}
+.row{display:flex;gap:9px;flex-wrap:wrap;margin-top:10px}
+button,.btn{border:0;border-radius:12px;padding:11px 14px;font-size:16px;font-weight:700;min-height:45px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.primary{background:var(--blue);color:#fff}.green{background:var(--green);color:#fff}.soft{background:#e9f2fb;color:#0b5797}.gray{background:#eef1f5;color:#334155}.gold{background:#fff0d7;color:#7a4300}.danger{background:#fdecec;color:var(--red)}
+input[type=file]{display:none}
+.pick{flex:1 1 220px}
+.note{background:#fff7e6;border:1px solid #eed39b;color:#744700;border-radius:12px;padding:11px;line-height:1.55;font-size:14px}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.pill{background:#eef3f8;border-radius:999px;padding:7px 10px;font-size:14px}
+.progress{height:12px;background:#e5eaf0;border-radius:999px;overflow:hidden}.progress>div{height:100%;background:var(--green);width:0;transition:.2s}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.photo{border:1px solid var(--line);border-radius:15px;padding:10px;background:#fff}
+.photo img{width:100%;height:180px;object-fit:cover;border-radius:10px;background:#eef1f5}
+.small{font-size:13px;color:var(--muted)}
+.status{font-weight:800}.ok{color:var(--green)}.bad{color:var(--red)}.warn{color:var(--gold)}
+input[type=text],textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:15px}
+.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:13px;max-height:620px}
+table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{position:sticky;top:0;background:#f1f5f9}
+.batch{background:#0f172a;color:#e2e8f0;border-radius:14px;padding:13px;min-height:90px;white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.hidden{display:none!important}
+@media(max-width:560px){button,.btn{flex:1 1 auto}.photo img{height:150px}}
+.cameraOverlay{position:fixed;inset:0;background:#000;z-index:100;display:flex;flex-direction:column}
+.cameraOverlay.hidden{display:none}
+.cameraTop{height:58px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;color:#fff;background:#000}
+.cameraView{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000}
+.cameraView video{width:100%;height:100%;object-fit:cover}
+.cameraGuide{position:absolute;inset:10% 7%;border:3px solid rgba(255,255,255,.8);border-radius:16px;box-shadow:0 0 0 9999px rgba(0,0,0,.18);pointer-events:none}
+.cameraHint{position:absolute;top:15px;left:50%;transform:translateX(-50%);background:#000a;color:#fff;padding:7px 11px;border-radius:999px;font-size:13px;white-space:nowrap}
+.cameraBottom{padding:14px 16px calc(14px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:space-around;background:#000;color:#fff}
+.shutter{width:76px;height:76px;border-radius:50%;border:6px solid #fff;background:#ddd;box-shadow:inset 0 0 0 4px #000;padding:0;min-height:0}
+.cameraSmall{background:#222;color:#fff;border:1px solid #555}
+.cameraCounter{min-width:86px;text-align:center;font-weight:800}
 </style>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
 </head>
 <body>
-<header><div class="head"><div><h1>💧 台水繳費查詢助手</h1><div class="ver">v2.0｜iPad 官方 ODS 匯入版</div></div><button class="gray" onclick="resetAll()">清除</button></div></header>
-<main><div class="grid">
-<section class="card">
-<h2>1. 貼上名單</h2>
-<textarea id="source" placeholder="D2-16｜莊宜馨｜5M935233346&#10;D2-17｜劉安泰｜5M934930415"></textarea>
-<div class="row"><button class="primary" onclick="parseSource()">整理名單</button><button class="soft" onclick="pasteText()">貼上剪貼簿</button></div>
-<div class="stats"><span class="pill" id="valid">有效 0 筆</span><span class="pill" id="binfo">第 0／0 批</span><span class="pill" id="dinfo">已查 0 批</span></div>
-<div class="progress"><div id="progressBar"></div></div>
-</section>
+<header><div class="head"><div><h1>📸 台水拍單查繳費助手</h1><div class="ver">v3｜拍照 OCR → 水號 → 官方 ODS → 匯入結果</div></div><button class="gray" onclick="resetAll()">清除全部</button></div></header>
 
+<main>
 <section class="card">
-<h2>2. 每批 9 筆</h2>
-<div class="batch" id="batch">尚未整理</div>
-<div class="row"><button class="soft" onclick="prev()">上一批</button><button class="soft" onclick="next()">下一批</button></div>
+<h2>1. 拍照或從相簿選取</h2>
 <div class="row">
-<button class="green" onclick="downloadBatchODS()">📥 下載本批官方 ODS</button>
-<button class="primary" onclick="copyBatch()">複製本批</button>
+<button class="btn primary pick" onclick="openLiveCamera()">📷 開啟連續相機</button>
+<label class="btn soft pick">🖼️ 相簿一次選很多張<input id="gallery" type="file" accept="image/*" multiple></label>
+<label class="btn gray pick">單張相機備用<input id="camera" type="file" accept="image/*" capture="environment"></label>
 </div>
-<div class="row"><a class="btn gold" target="_blank" rel="noopener" href="https://www.water.gov.tw/ch/EQuery/WaterFeeQuery?nodeId=753">🌐 開啟台水查詢頁</a><button class="gray" onclick="done()">✓ 標記已查</button></div>
-<div class="note success"><b>iPad 使用順序：</b>下載本批 ODS → 開啟台水查詢頁 → 按「匯入」選擇剛下載的檔案 → 輸入驗證碼 → 查詢。</div>
+<div class="note">照片只在你的裝置瀏覽器內處理。第一次 OCR 會下載辨識模型，需有網路。單張照片盡量拍正、拍清楚、不要反光。</div>
+<div class="stats"><span class="pill" id="photoCount">照片 0 張</span><span class="pill" id="ocrCount">已辨識 0 張</span><span class="pill" id="waterCount">有效水號 0 筆</span></div>
+<div class="progress"><div id="ocrBar"></div></div>
+<div class="row"><button class="green" onclick="startOCR()">🤖 開始批次辨識</button><button class="gray" onclick="stopOCR()">停止</button></div>
 </section>
 
-<section class="card full">
-<h2>3. 匯入台水查詢結果 ODS，整理最近 2 期</h2>
-<label class="drop"><input id="file" type="file" accept=".ods"><b>點這裡選擇查詢結果 ODS</b><br>iPad 會開啟「檔案」App</label>
-<div class="stats" id="rstats"></div>
-<div class="tablewrap hidden" id="wrap"><table><thead><tr><th>編號／姓名</th><th>水號</th><th>最近一期</th><th>狀態</th><th>應繳</th><th>前一期</th><th>狀態</th><th>應繳</th></tr></thead><tbody id="body"></tbody></table></div>
-<div class="row"><button id="csv" class="soft hidden" onclick="exportCSV()">匯出 CSV</button></div>
+<section class="card">
+<h2>2. 照片與辨識結果</h2>
+<div id="photoGrid" class="grid"></div>
+<div id="emptyPhotos" class="small">尚未加入照片。</div>
 </section>
-</div></main>
+
+<section class="card">
+<h2>3. 水號名單與每 9 筆分批</h2>
+<div class="stats"><span class="pill" id="batchInfo">第 0／0 批</span><span class="pill" id="dedupeInfo">去重後 0 筆</span></div>
+<div id="batchBox" class="batch">尚無水號</div>
+<div class="row"><button class="soft" onclick="prevBatch()">上一批</button><button class="soft" onclick="nextBatch()">下一批</button></div>
+<div class="row">
+<button class="green" onclick="downloadODS()">📥 下載本批官方 ODS</button>
+<a class="btn gold" target="_blank" rel="noopener" href="https://www.water.gov.tw/ch/EQuery/WaterFeeQuery?nodeId=753">🌐 開啟台水查詢頁</a>
+</div>
+</section>
+
+<section class="card">
+<h2>4. 匯入台水查詢結果 ODS</h2>
+<label class="btn soft pick">📂 選擇查詢結果 ODS<input id="resultFile" type="file" accept=".ods"></label>
+<div id="resultStats" class="stats"></div>
+<div id="resultWrap" class="tablewrap hidden">
+<table><thead><tr><th>水號</th><th>姓名</th><th>地址</th><th>期別</th><th>狀態</th><th>金額</th><th>銷帳日</th></tr></thead><tbody id="resultBody"></tbody></table>
+</div>
+<div class="row"><button id="csvBtn" class="soft hidden" onclick="exportCSV()">匯出 CSV</button></div>
+</section>
+</main>
+
+<div id="cameraOverlay" class="cameraOverlay hidden">
+  <div class="cameraTop">
+    <button class="cameraSmall" onclick="closeLiveCamera()">完成</button>
+    <div>連續拍單</div>
+    <button class="cameraSmall" onclick="switchCamera()">切換</button>
+  </div>
+  <div class="cameraView">
+    <video id="liveVideo" autoplay muted playsinline></video>
+    <div class="cameraGuide"></div>
+    <div class="cameraHint">將整張單子放入框內，拍完可繼續拍</div>
+  </div>
+  <div class="cameraBottom">
+    <div class="cameraCounter" id="liveCount">已拍 0 張</div>
+    <button class="shutter" aria-label="拍照" onclick="captureLivePhoto()"></button>
+    <button class="cameraSmall" onclick="closeLiveCamera()">完成辨識</button>
+  </div>
+  <canvas id="cameraCanvas" class="hidden"></canvas>
+</div>
+
 <script>
-const KEY="tw_water_ipad_v2";
-let s={source:"",records:[],bi:0,done:[],results:[]};
-const ODS_CONTENT="<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<office:document-content xmlns:table=\"urn:oasis:names:tc:opendocument:xmlns:table:1.0\" xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" xmlns:style=\"urn:oasis:names:tc:opendocument:xmlns:style:1.0\" xmlns:draw=\"urn:oasis:names:tc:opendocument:xmlns:drawing:1.0\" xmlns:fo=\"urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:number=\"urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0\" xmlns:svg=\"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0\" xmlns:of=\"urn:oasis:names:tc:opendocument:xmlns:of:1.2\" office:version=\"1.2\"><office:font-face-decls><style:font-face style:name=\"新細明體\" svg:font-family=\"新細明體\"/></office:font-face-decls><office:automatic-styles><style:style style:name=\"ce1\" style:family=\"table-cell\" style:parent-style-name=\"Default\" style:data-style-name=\"N0\"/><style:style style:name=\"ce2\" style:family=\"table-cell\" style:parent-style-name=\"Default\" style:data-style-name=\"N0\"><style:table-cell-properties fo:border=\"thin solid #000000\"/></style:style><style:style style:name=\"co1\" style:family=\"table-column\"><style:table-column-properties fo:break-before=\"auto\" style:column-width=\"2.09020833333333cm\"/></style:style><style:style style:name=\"co2\" style:family=\"table-column\"><style:table-column-properties fo:break-before=\"auto\" style:column-width=\"9.65729166666667cm\"/></style:style><style:style style:name=\"co3\" style:family=\"table-column\"><style:table-column-properties fo:break-before=\"auto\" style:column-width=\"7.64645833333333cm\"/></style:style><style:style style:name=\"co4\" style:family=\"table-column\"><style:table-column-properties fo:break-before=\"auto\" style:column-width=\"1.905cm\"/></style:style><style:style style:name=\"ro1\" style:family=\"table-row\"><style:table-row-properties style:row-height=\"16.5pt\" style:use-optimal-row-height=\"true\" fo:break-before=\"auto\"/></style:style><style:style style:name=\"ta1\" style:family=\"table\" style:master-page-name=\"mp1\"><style:table-properties table:display=\"true\" style:writing-mode=\"lr-tb\"/></style:style></office:automatic-styles><office:body><office:spreadsheet><table:calculation-settings table:case-sensitive=\"false\" table:search-criteria-must-apply-to-whole-cell=\"true\" table:use-wildcards=\"true\" table:use-regular-expressions=\"false\" table:automatic-find-labels=\"false\"/><table:table table:name=\"工作表1\" table:style-name=\"ta1\"><table:table-column table:style-name=\"co1\" table:default-cell-style-name=\"ce1\"/><table:table-column table:style-name=\"co2\" table:default-cell-style-name=\"ce1\"/><table:table-column table:style-name=\"co3\" table:default-cell-style-name=\"ce1\"/><table:table-column table:style-name=\"co4\" table:number-columns-repeated=\"16381\" table:default-cell-style-name=\"ce1\"/><table:table-row table:style-name=\"ro1\"><table:table-cell office:value-type=\"string\" table:style-name=\"ce2\"><text:p>No</text:p></table:table-cell><table:table-cell office:value-type=\"string\" table:style-name=\"ce2\"><text:p>查詢水號</text:p></table:table-cell><table:table-cell office:value-type=\"string\" table:style-name=\"ce2\"><text:p>說明</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"16381\"/></table:table-row><table:table-row table:style-name=\"ro1\"><table:table-cell office:value-type=\"float\" office:value=\"1\" table:style-name=\"ce2\"><text:p>1</text:p></table:table-cell><table:table-cell office:value-type=\"string\" table:style-name=\"ce2\"><text:p>站所(2碼)-編號(8碼)-檢號(1碼) EX：21123456787</text:p></table:table-cell><table:table-cell office:value-type=\"string\" table:style-name=\"ce2\"><text:p>此筆為範例資料，使用時請刪除此筆</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"16381\"/></table:table-row><table:table-row table:style-name=\"ro1\"><table:table-cell office:value-type=\"float\" office:value=\"2\" table:style-name=\"ce2\"><text:p>2</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"2\" table:style-name=\"ce2\"/><table:table-cell table:number-columns-repeated=\"16381\"/></table:table-row><table:table-row table:style-name=\"ro1\"><table:table-cell office:value-type=\"float\" office:value=\"3\" table:style-name=\"ce2\"><text:p>3</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"2\" table:style-name=\"ce2\"/><table:table-cell table:number-columns-repeated=\"16381\"/></table:table-row><table:table-row table:style-name=\"ro1\"><table:table-cell office:value-type=\"float\" office:value=\"4\" table:style-name=\"ce2\"><text:p>4</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"2\" table:style-name=\"ce2\"/><table:table-cell table:number-columns-repeated=\"16381\"/></table:table-row><table:table-row table:style-name=\"ro1\"><table:table-cell office:value-type=\"float\" office:value=\"5\" table:style-name=\"ce2\"><text:p>5</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"2\" table:style-name=\"ce2\"/><table:table-cell table:number-columns-repeated=\"16381\"/></table:table-row><table:table-row table:style-name=\"ro1\"><table:table-cell office:value-type=\"float\" office:value=\"6\" table:style-name=\"ce2\"><text:p>6</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"2\" table:style-name=\"ce2\"/><table:table-cell table:number-columns-repeated=\"16381\"/></table:table-row><table:table-row table:style-name=\"ro1\"><table:table-cell office:value-type=\"float\" office:value=\"7\" table:style-name=\"ce2\"><text:p>7</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"2\" table:style-name=\"ce2\"/><table:table-cell table:number-columns-repeated=\"16381\"/></table:table-row><table:table-row table:style-name=\"ro1\"><table:table-cell office:value-type=\"float\" office:value=\"8\" table:style-name=\"ce2\"><text:p>8</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"2\" table:style-name=\"ce2\"/><table:table-cell table:number-columns-repeated=\"16381\"/></table:table-row><table:table-row table:style-name=\"ro1\"><table:table-cell office:value-type=\"float\" office:value=\"9\" table:style-name=\"ce2\"><text:p>9</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"2\" table:style-name=\"ce2\"/><table:table-cell table:number-columns-repeated=\"16381\"/></table:table-row><table:table-row table:number-rows-repeated=\"1048566\" table:style-name=\"ro1\"><table:table-cell table:number-columns-repeated=\"16384\"/></table:table-row></table:table></office:spreadsheet></office:body></office:document-content>";
-const ODS_STYLES="<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<office:document-styles xmlns:table=\"urn:oasis:names:tc:opendocument:xmlns:table:1.0\" xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" xmlns:style=\"urn:oasis:names:tc:opendocument:xmlns:style:1.0\" xmlns:draw=\"urn:oasis:names:tc:opendocument:xmlns:drawing:1.0\" xmlns:fo=\"urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:number=\"urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0\" xmlns:svg=\"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0\" xmlns:of=\"urn:oasis:names:tc:opendocument:xmlns:of:1.2\" office:version=\"1.2\"><office:font-face-decls><style:font-face style:name=\"新細明體\" svg:font-family=\"新細明體\"/></office:font-face-decls><office:styles><number:number-style style:name=\"N0\"><number:number number:min-integer-digits=\"1\"/></number:number-style><style:style style:name=\"Default\" style:family=\"table-cell\" style:data-style-name=\"N0\"><style:table-cell-properties style:vertical-align=\"middle\" fo:background-color=\"transparent\"/><style:text-properties fo:color=\"#000000\" style:font-name=\"新細明體\" style:font-name-asian=\"新細明體\" style:font-name-complex=\"新細明體\" fo:font-size=\"12pt\" style:font-size-asian=\"12pt\" style:font-size-complex=\"12pt\"/></style:style><style:default-style style:family=\"graphic\"><style:graphic-properties draw:fill=\"solid\" draw:fill-color=\"#4472c4\" draw:opacity=\"100%\" draw:stroke=\"solid\" svg:stroke-width=\"0.01389in\" svg:stroke-color=\"#2f528f\" svg:stroke-opacity=\"100%\" draw:stroke-linejoin=\"miter\" svg:stroke-linecap=\"butt\"/></style:default-style></office:styles><office:automatic-styles><style:page-layout style:name=\"pm1\"><style:page-layout-properties fo:margin-top=\"0.3in\" fo:margin-bottom=\"0.3in\" fo:margin-left=\"0.7in\" fo:margin-right=\"0.7in\" style:print-orientation=\"portrait\" style:print-page-order=\"ttb\" style:first-page-number=\"continue\" style:scale-to=\"100%\" style:table-centering=\"none\" style:print=\"objects charts drawings\"/><style:header-style><style:header-footer-properties fo:min-height=\"0.45in\" fo:margin-left=\"0.7in\" fo:margin-right=\"0.7in\" fo:margin-bottom=\"0in\"/></style:header-style><style:footer-style><style:header-footer-properties fo:min-height=\"0.45in\" fo:margin-left=\"0.7in\" fo:margin-right=\"0.7in\" fo:margin-top=\"0in\"/></style:footer-style></style:page-layout></office:automatic-styles><office:master-styles><style:master-page style:name=\"mp1\" style:page-layout-name=\"pm1\"><style:header/><style:header-left style:display=\"false\"/><style:footer/><style:footer-left style:display=\"false\"/></style:master-page></office:master-styles></office:document-styles>";
-const ODS_META="<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<office:document-meta xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:meta=\"urn:oasis:names:tc:opendocument:xmlns:meta:1.0\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" office:version=\"1.2\"><office:meta><meta:generator>MicrosoftOffice/16.0 MicrosoftExcel/CalculationVersion-22325</meta:generator><meta:initial-creator>Daniel Yei</meta:initial-creator><dc:creator>Administrator</dc:creator><meta:creation-date>2019-10-22T08:59:06Z</meta:creation-date><dc:date>2020-02-18T11:48:58Z</dc:date></office:meta></office:document-meta>";
-const ODS_MANIFEST="<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<manifest:manifest xmlns:manifest=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0\"><manifest:file-entry manifest:full-path=\"/\" manifest:media-type=\"application/vnd.oasis.opendocument.spreadsheet\"/><manifest:file-entry manifest:full-path=\"styles.xml\" manifest:media-type=\"text/xml\"/><manifest:file-entry manifest:full-path=\"content.xml\" manifest:media-type=\"text/xml\"/><manifest:file-entry manifest:full-path=\"meta.xml\" manifest:media-type=\"text/xml\"/></manifest:manifest>";
-const ODS_MIMETYPE="application/vnd.oasis.opendocument.spreadsheet";
-
-function save(){localStorage.setItem(KEY,JSON.stringify(s))}
-function load(){
-  try{
-    const old=JSON.parse(localStorage.getItem(KEY)||"null")||JSON.parse(localStorage.getItem("tw_water_ipad_v1")||"null")||{};
-    s={...s,...old};
-  }catch(e){}
-  document.getElementById("source").value=s.source||"";
-  render();
-  if(s.results.length)renderResults();
-}
-function parseLine(l){
-  const c=l.toUpperCase().replace(/[\s\-－—–_｜|:：,，;；()（）\[\]【】]/g,"");
-  const m=c.match(/[0-9A-Z]{11}/);
-  if(!m)return null;
-  const p=l.split(/[｜|]/).map(x=>x.trim()).filter(Boolean);
-  return{water:m[0],code:p.length>=3?p[0]:"",name:p.length>=3?p[1]:(p.length==2?p[0]:"")};
-}
-function parseSource(){
-  const t=document.getElementById("source").value,a=[],seen=new Set();
-  t.split(/\r?\n/).forEach(l=>{const r=parseLine(l);if(r&&!seen.has(r.water)){seen.add(r.water);a.push(r)}});
-  s.source=t;s.records=a;s.bi=0;s.done=[];save();render();
-}
-async function pasteText(){try{document.getElementById("source").value=await navigator.clipboard.readText()}catch(e){alert("請長按文字框後貼上")}}
-function currentBatch(){return s.records.slice(s.bi*9,s.bi*9+9)}
-function render(){
-  const n=Math.ceil(s.records.length/9);
-  if(n){
-    s.bi=Math.max(0,Math.min(s.bi,n-1));
-    document.getElementById("batch").textContent=currentBatch().map((x,i)=>`${i+1}. ${x.water}`).join("\n");
-  }else document.getElementById("batch").textContent="尚未整理";
-  document.getElementById("valid").textContent="有效 "+s.records.length+" 筆";
-  document.getElementById("binfo").textContent=n?"第 "+(s.bi+1)+"／"+n+" 批"+(s.done.includes(s.bi)?"（已查）":""):"第 0／0 批";
-  document.getElementById("dinfo").textContent="已查 "+s.done.length+" 批";
-  document.getElementById("progressBar").style.width=(n?Math.round(s.done.length/n*100):0)+"%";
-  save();
-}
-function next(){s.bi++;render()} function prev(){s.bi--;render()}
-async function copyBatch(){
-  const t=currentBatch().map(x=>x.water).join("\n");if(!t)return alert("請先整理名單");
-  try{await navigator.clipboard.writeText(t);alert("已複製本批 "+currentBatch().length+" 筆")}catch(e){prompt("長按複製",t)}
-}
-function done(){if(!s.records.length)return alert("請先整理名單");if(!s.done.includes(s.bi))s.done.push(s.bi);if((s.bi+1)*9<s.records.length)s.bi++;render()}
-function resetAll(){if(confirm("確定清除所有資料與進度？")){localStorage.removeItem(KEY);localStorage.removeItem("tw_water_ipad_v1");location.reload()}}
-
-function setCellText(cell,value){
-  const TABLE="urn:oasis:names:tc:opendocument:xmlns:table:1.0";
-  const OFFICE="urn:oasis:names:tc:opendocument:xmlns:office:1.0";
-  const TEXT="urn:oasis:names:tc:opendocument:xmlns:text:1.0";
-  cell.removeAttributeNS(TABLE,"number-columns-repeated");
-  cell.setAttributeNS(OFFICE,"office:value-type","string");
-  while(cell.firstChild)cell.removeChild(cell.firstChild);
-  const p=cell.ownerDocument.createElementNS(TEXT,"text:p");
-  p.textContent=value||"";
-  cell.appendChild(p);
-}
-function buildODSContent(waters){
-  const parser=new DOMParser();
-  const doc=parser.parseFromString(ODS_CONTENT,"application/xml");
-  if(doc.querySelector("parsererror"))throw new Error("ODS 範本解析失敗");
-  const TABLE="urn:oasis:names:tc:opendocument:xmlns:table:1.0";
-  const OFFICE="urn:oasis:names:tc:opendocument:xmlns:office:1.0";
-  const TEXT="urn:oasis:names:tc:opendocument:xmlns:text:1.0";
-  const rows=[...doc.getElementsByTagNameNS(TABLE,"table-row")];
-  for(let i=1;i<=9;i++){
-    const row=rows[i];
-    const old=[...row.children].filter(x=>x.namespaceURI===TABLE&&x.localName==="table-cell");
-    while(row.firstChild)row.removeChild(row.firstChild);
-    const no=doc.createElementNS(TABLE,"table:table-cell");
-    no.setAttributeNS(OFFICE,"office:value-type","float");
-    no.setAttributeNS(OFFICE,"office:value",String(i));
-    no.setAttributeNS(TABLE,"table:style-name","ce2");
-    const p1=doc.createElementNS(TEXT,"text:p");p1.textContent=String(i);no.appendChild(p1);
-    const water=doc.createElementNS(TABLE,"table:table-cell");
-    water.setAttributeNS(OFFICE,"office:value-type","string");
-    water.setAttributeNS(TABLE,"table:style-name","ce2");
-    const p2=doc.createElementNS(TEXT,"text:p");p2.textContent=waters[i-1]||"";water.appendChild(p2);
-    const note=doc.createElementNS(TABLE,"table:table-cell");
-    note.setAttributeNS(OFFICE,"office:value-type","string");
-    note.setAttributeNS(TABLE,"table:style-name","ce2");
-    note.appendChild(doc.createElementNS(TEXT,"text:p"));
-    const tail=doc.createElementNS(TABLE,"table:table-cell");
-    tail.setAttributeNS(TABLE,"table:number-columns-repeated","16381");
-    row.append(no,water,note,tail);
-  }
-  return new XMLSerializer().serializeToString(doc);
-}
-async function downloadBatchODS(){
-  const waters=currentBatch().map(x=>x.water);
-  if(!waters.length)return alert("請先整理名單");
-  if(typeof JSZip==="undefined")return alert("ODS 元件尚未載入，請重新整理頁面");
-  try{
-    const zip=new JSZip();
-    zip.file("mimetype",ODS_MIMETYPE,{compression:"STORE"});
-    zip.file("styles.xml",ODS_STYLES);
-    zip.file("content.xml",buildODSContent(waters));
-    zip.folder("META-INF").file("manifest.xml",ODS_MANIFEST);
-    zip.file("meta.xml",ODS_META);
-    const blob=await zip.generateAsync({type:"blob",mimeType:ODS_MIMETYPE,compression:"DEFLATE"});
-    const a=document.createElement("a");
-    const num=String(s.bi+1).padStart(2,"0");
-    a.href=URL.createObjectURL(blob);
-    a.download=`第${num}批_台水查詢匯入.ods`;
-    document.body.appendChild(a);a.click();a.remove();
-    setTimeout(()=>URL.revokeObjectURL(a.href),3000);
-  }catch(err){alert("ODS 產生失敗："+err.message)}
-}
-
-function clean(x){return(x||"").toUpperCase().replace(/[^0-9A-Z]/g,"")}
-function txt(c){let v="";c.querySelectorAll("p").forEach(p=>v+=p.textContent);return v.trim()}
-function rows(xml){
-  const ns="urn:oasis:names:tc:opendocument:xmlns:table:1.0",out=[];
-  for(const r of [...xml.getElementsByTagNameNS(ns,"table-row")]){
-    const vals=[];
-    for(const c of [...r.children].filter(x=>x.localName.includes("table-cell"))){
-      const q=Math.min(parseInt(c.getAttributeNS(ns,"number-columns-repeated")||"1"),50),v=txt(c);
-      for(let i=0;i<q;i++)vals.push(v);
+const state={photos:[],batch:0,results:[],stop:false};
+let liveStream=null;
+let liveFacing="environment";
+let liveStartCount=0;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
+function normalizeWater(s){return String(s||"").toUpperCase().replace(/[\s\-－—_]/g,"").replace(/[^0-9A-Z]/g,"")}
+function findWater(text){
+  const raw=String(text||"").toUpperCase().replace(/[ＯO]/g,"0").replace(/[ＩIＬL]/g,"1").replace(/[Ｂ]/g,"8").replace(/[Ｓ]/g,"5");
+  const candidates=raw.match(/[0-9A-ZＭｍ][0-9A-ZＭｍ\-\s]{8,18}/g)||[];
+  const scored=[];
+  for(const c of candidates){
+    let n=normalizeWater(c).replace(/Ｍ/g,"M");
+    const hits=n.match(/[0-9][0-9A-Z]{9,12}/g)||[];
+    for(const h of hits){
+      if(h.length>=10&&h.length<=13&&/[A-Z]/.test(h)) scored.push(h);
     }
-    out.push(vals);
   }
-  return out;
+  const all=[...new Set(scored)];
+  return all.sort((a,b)=>Math.abs(a.length-11)-Math.abs(b.length-11))[0]||"";
 }
-function stat(r){return r&&((r.status||"").includes("已繳")||r.paid||r.date)?"已繳":"未顯示已繳"}
-document.getElementById("file").addEventListener("change",async e=>{
+function guessName(text){
+  const lines=String(text||"").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  for(const l of lines){
+    const m=l.match(/(?:用戶名稱|用戶姓名|姓名)[:：\s]*([\u4e00-\u9fff]{2,6})/);
+    if(m)return m[1];
+  }
+  return "";
+}
+function guessAddress(text){
+  const lines=String(text||"").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  return lines.find(l=>/(縣|市).*(鄉|鎮|市|區).*(路|街|巷|村|里|號)/.test(l))||"";
+}
+async function addFiles(list){
+  for(const f of [...list]){
+    const url=URL.createObjectURL(f);
+    state.photos.push({id:crypto.randomUUID(),file:f,url,text:"",water:"",name:"",address:"",status:"待辨識",progress:0});
+  }
+  render();
+}
+$("camera").addEventListener("change",e=>{addFiles(e.target.files);e.target.value=""});
+$("gallery").addEventListener("change",e=>{addFiles(e.target.files);e.target.value=""});
+async function openLiveCamera(){
+  if(!navigator.mediaDevices?.getUserMedia){
+    alert("此瀏覽器不支援網頁連續相機，請改用「單張相機備用」或相簿多選。");
+    return;
+  }
+  if(location.protocol!=="https:" && location.hostname!=="localhost"){
+    alert("連續相機需要 HTTPS。請從 GitHub Pages 網址開啟，不要直接開啟本機 HTML。");
+    return;
+  }
+  liveStartCount=state.photos.length;
+  $("liveCount").textContent="已拍 0 張";
+  $("cameraOverlay").classList.remove("hidden");
+  document.body.style.overflow="hidden";
+  try{
+    await startLiveStream();
+  }catch(err){
+    closeLiveCamera();
+    alert("無法開啟相機："+err.message+"。請到 iPhone「設定 → Safari → 相機」允許使用。");
+  }
+}
+async function startLiveStream(){
+  if(liveStream) liveStream.getTracks().forEach(t=>t.stop());
+  liveStream=await navigator.mediaDevices.getUserMedia({
+    video:{
+      facingMode:{ideal:liveFacing},
+      width:{ideal:1920},
+      height:{ideal:2560}
+    },
+    audio:false
+  });
+  const video=$("liveVideo");
+  video.srcObject=liveStream;
+  await video.play();
+}
+async function switchCamera(){
+  liveFacing=liveFacing==="environment"?"user":"environment";
+  try{await startLiveStream()}catch(err){alert("切換相機失敗："+err.message)}
+}
+async function captureLivePhoto(){
+  const video=$("liveVideo");
+  if(!video.videoWidth){alert("相機尚未準備完成");return}
+  const canvas=$("cameraCanvas");
+  const maxWidth=1800;
+  const scale=Math.min(1,maxWidth/video.videoWidth);
+  canvas.width=Math.round(video.videoWidth*scale);
+  canvas.height=Math.round(video.videoHeight*scale);
+  const ctx=canvas.getContext("2d");
+  ctx.drawImage(video,0,0,canvas.width,canvas.height);
+  const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",0.9));
+  if(!blob)return;
+  const file=new File([blob],`water-slip-${Date.now()}.jpg`,{type:"image/jpeg"});
+  await addFiles([file]);
+  const count=state.photos.length-liveStartCount;
+  $("liveCount").textContent=`已拍 ${count} 張`;
+  if(navigator.vibrate) navigator.vibrate(40);
+}
+function closeLiveCamera(){
+  if(liveStream){liveStream.getTracks().forEach(t=>t.stop());liveStream=null}
+  $("liveVideo").srcObject=null;
+  $("cameraOverlay").classList.add("hidden");
+  document.body.style.overflow="";
+  const count=state.photos.length-liveStartCount;
+  if(count>0 && confirm(`已拍 ${count} 張。現在開始批次辨識嗎？`)) startOCR();
+}
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden && liveStream) closeLiveCamera();
+});
+
+function render(){
+  $("photoCount").textContent=`照片 ${state.photos.length} 張`;
+  $("ocrCount").textContent=`已辨識 ${state.photos.filter(p=>p.status==="完成").length} 張`;
+  $("waterCount").textContent=`有效水號 ${waters().length} 筆`;
+  $("emptyPhotos").classList.toggle("hidden",state.photos.length>0);
+  $("photoGrid").innerHTML=state.photos.map((p,i)=>`
+  <article class="photo">
+    <img src="${p.url}" alt="第${i+1}張">
+    <div class="small">第 ${i+1} 張｜<span class="status ${p.status==="完成"?"ok":p.status==="失敗"?"bad":"warn"}">${esc(p.status)}</span> ${p.progress?`(${p.progress}%)`:""}</div>
+    <label class="small">水號</label><input type="text" value="${esc(p.water)}" oninput="editField('${p.id}','water',this.value)">
+    <label class="small">姓名</label><input type="text" value="${esc(p.name)}" oninput="editField('${p.id}','name',this.value)">
+    <label class="small">地址</label><input type="text" value="${esc(p.address)}" oninput="editField('${p.id}','address',this.value)">
+    <details><summary class="small">查看 OCR 文字</summary><textarea rows="5">${esc(p.text)}</textarea></details>
+    <div class="row"><button class="soft" onclick="ocrOne('${p.id}')">重辨識</button><button class="danger" onclick="removePhoto('${p.id}')">刪除</button></div>
+  </article>`).join("");
+  renderBatch();
+}
+function editField(id,key,val){const p=state.photos.find(x=>x.id===id);if(p){p[key]=key==="water"?normalizeWater(val):val;renderBatch()}}
+function removePhoto(id){const i=state.photos.findIndex(x=>x.id===id);if(i>=0){URL.revokeObjectURL(state.photos[i].url);state.photos.splice(i,1);render()}}
+function waters(){return [...new Set(state.photos.map(p=>normalizeWater(p.water)).filter(x=>x.length>=10))]}
+async function ocrOne(id){
+  const p=state.photos.find(x=>x.id===id); if(!p)return;
+  p.status="辨識中";p.progress=0;render();
+  try{
+    const ret=await Tesseract.recognize(p.file,"chi_tra+eng",{logger:m=>{if(m.status==="recognizing text"){p.progress=Math.round((m.progress||0)*100);render()}}});
+    p.text=ret.data.text||"";
+    p.water=findWater(p.text);
+    p.name=guessName(p.text);
+    p.address=guessAddress(p.text);
+    p.status=p.water?"完成":"失敗";
+  }catch(e){p.status="失敗";p.text=(p.text||"")+"\n"+e.message}
+  p.progress=100;render();
+}
+async function startOCR(){
+  state.stop=false;
+  const targets=state.photos.filter(p=>p.status!=="完成");
+  for(let i=0;i<targets.length;i++){
+    if(state.stop)break;
+    await ocrOne(targets[i].id);
+    $("ocrBar").style.width=`${Math.round(((i+1)/targets.length)*100)}%`;
+  }
+}
+function stopOCR(){state.stop=true}
+function batches(){const w=waters(),out=[];for(let i=0;i<w.length;i+=9)out.push(w.slice(i,i+9));return out}
+function renderBatch(){
+  const bs=batches();
+  if(state.batch>=bs.length)state.batch=Math.max(0,bs.length-1);
+  $("batchInfo").textContent=`第 ${bs.length?state.batch+1:0}／${bs.length} 批`;
+  $("dedupeInfo").textContent=`去重後 ${waters().length} 筆`;
+  $("batchBox").textContent=bs.length?bs[state.batch].map((x,i)=>`${i+1}. ${x}`).join("\n"):"尚無水號";
+}
+function prevBatch(){state.batch=Math.max(0,state.batch-1);renderBatch()}
+function nextBatch(){state.batch=Math.min(Math.max(0,batches().length-1),state.batch+1);renderBatch()}
+function xmlEsc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+async function downloadODS(){
+  const rows=batches()[state.batch]||[];if(!rows.length){alert("目前沒有可下載的水號");return}
+  const content=`<?xml version="1.0" encoding="UTF-8"?>
+<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:version="1.2"><office:body><office:spreadsheet><table:table table:name="工作表1">
+<table:table-row><table:table-cell office:value-type="string"><text:p>No</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>查詢水號</text:p></table:table-cell></table:table-row>
+${Array.from({length:9},(_,i)=>`<table:table-row><table:table-cell office:value-type="float" office:value="${i+1}"><text:p>${i+1}</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>${xmlEsc(rows[i]||"")}</text:p></table:table-cell></table:table-row>`).join("")}
+</table:table></office:spreadsheet></office:body></office:document-content>`;
+  const zip=new JSZip();
+  zip.file("mimetype","application/vnd.oasis.opendocument.spreadsheet",{compression:"STORE"});
+  zip.file("content.xml",content);
+  zip.folder("META-INF").file("manifest.xml",`<?xml version="1.0" encoding="UTF-8"?><manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.2"><manifest:file-entry manifest:full-path="/" manifest:media-type="application/vnd.oasis.opendocument.spreadsheet"/><manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/></manifest:manifest>`);
+  const blob=await zip.generateAsync({type:"blob",mimeType:"application/vnd.oasis.opendocument.spreadsheet"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`台水查詢_第${state.batch+1}批.ods`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+$("resultFile").addEventListener("change",async e=>{
   const f=e.target.files[0];if(!f)return;
   try{
-    const z=await JSZip.loadAsync(await f.arrayBuffer());
-    const contentFile=z.file("content.xml");if(!contentFile)throw new Error("不是有效的 ODS");
-    const x=new DOMParser().parseFromString(await contentFile.async("string"),"application/xml"),rs=rows(x);
-    let gs=[],cur=null,head=false;
-    for(const r of rs){
-      const a=(r[0]||"").trim();
-      if(/^水號[:：]/.test(a)){if(cur)gs.push(cur);cur={water:clean(a.replace(/^水號[:：]/,"")),rec:[]};head=false}
-      else if(cur&&a==="繳費年月")head=true;
-      else if(cur&&head&&/^\d{4}\/\d{1,2}$/.test(a))cur.rec.push({period:a,due:r[3]||"",paid:r[4]||"",date:r[5]||"",status:r[6]||""});
+    const zip=await JSZip.loadAsync(f),xml=await zip.file("content.xml").async("string");
+    const doc=new DOMParser().parseFromString(xml,"text/xml");
+    const rows=[...doc.getElementsByTagNameNS("*","table-row")].map(r=>[...r.getElementsByTagNameNS("*","table-cell")].map(c=>[...c.getElementsByTagNameNS("*","p")].map(p=>p.textContent).join(" ")));
+    const flat=rows.map(r=>r.map(x=>x.trim()));
+    const out=[];
+    for(const r of flat){
+      const joined=r.join(" | ");
+      const water=findWater(joined);if(!water)continue;
+      const status=/已繳|銷帳/.test(joined)?"已繳":/未繳|欠費|應繳/.test(joined)?"未繳":"待確認";
+      const amount=(joined.match(/(?:應繳金額|金額)[:：\s]*([\d,]+)/)||[])[1]||"";
+      const period=(joined.match(/(20\d{2}[\/\-]\d{1,2}|民國?\s*\d{2,3}[\/\-]\d{1,2})/)||[])[1]||"";
+      const paid=(joined.match(/(?:銷帳日|繳費日)[:：\s]*([0-9\/\-]+)/)||[])[1]||"";
+      const p=state.photos.find(x=>normalizeWater(x.water)===water);
+      out.push({water,name:p?.name||"",address:p?.address||"",period,status,amount,paid,raw:joined});
     }
-    if(cur)gs.push(cur);
-    const map=new Map(s.records.map(r=>[r.water,r]));
-    s.results=gs.map(g=>{const q=g.rec.sort((a,b)=>b.period.localeCompare(a.period)).slice(0,2),m=map.get(g.water)||{};return{water:g.water,code:m.code||"",name:m.name||"",r1:q[0]||null,r2:q[1]||null}});
-    save();renderResults();
-  }catch(err){alert("ODS 讀取失敗："+err.message)}
+    state.results=out;renderResults();
+  }catch(err){alert("讀取 ODS 失敗："+err.message)}
 });
-function esc(v){return String(v||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}
 function renderResults(){
-  const b=document.getElementById("body");b.innerHTML="";let p=0,u=0;
-  s.results.forEach(x=>{
-    stat(x.r1)==="已繳"?p++:u++;
-    const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${esc([x.code,x.name].filter(Boolean).join(" "))}</td><td>${x.water}</td><td>${esc(x.r1?.period)}</td><td class="${stat(x.r1)==="已繳"?"ok":"bad"}">${stat(x.r1)}</td><td>${esc(x.r1?.due)}</td><td>${esc(x.r2?.period)}</td><td class="${stat(x.r2)==="已繳"?"ok":"bad"}">${stat(x.r2)}</td><td>${esc(x.r2?.due)}</td>`;
-    b.appendChild(tr);
-  });
-  document.getElementById("rstats").innerHTML=`<span class="pill">共 ${s.results.length} 戶</span><span class="pill">最近一期已繳 ${p}</span><span class="pill">未顯示已繳 ${u}</span>`;
-  document.getElementById("wrap").classList.remove("hidden");document.getElementById("csv").classList.remove("hidden");
+  $("resultStats").innerHTML=`<span class="pill">共 ${state.results.length} 筆</span><span class="pill">已繳 ${state.results.filter(x=>x.status==="已繳").length} 筆</span><span class="pill">未繳 ${state.results.filter(x=>x.status==="未繳").length} 筆</span>`;
+  $("resultBody").innerHTML=state.results.map(r=>`<tr><td>${esc(r.water)}</td><td>${esc(r.name)}</td><td>${esc(r.address)}</td><td>${esc(r.period)}</td><td class="${r.status==="已繳"?"ok":r.status==="未繳"?"bad":"warn"}">${esc(r.status)}</td><td>${esc(r.amount)}</td><td>${esc(r.paid)}</td></tr>`).join("");
+  $("resultWrap").classList.toggle("hidden",!state.results.length);$("csvBtn").classList.toggle("hidden",!state.results.length);
 }
 function exportCSV(){
-  const a=[["編號","姓名","水號","最近一期","狀態","應繳","前一期","狀態","應繳"]];
-  s.results.forEach(x=>a.push([x.code,x.name,x.water,x.r1?.period||"",stat(x.r1),x.r1?.due||"",x.r2?.period||"",stat(x.r2),x.r2?.due||""]));
-  const csv="\ufeff"+a.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\r\n");
-  const l=document.createElement("a");l.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));l.download="台水最近2期.csv";l.click();
+  const rows=[["水號","姓名","地址","期別","狀態","金額","銷帳日"],...state.results.map(r=>[r.water,r.name,r.address,r.period,r.status,r.amount,r.paid])];
+  const csv="\ufeff"+rows.map(r=>r.map(v=>`"${String(v||"").replace(/"/g,'""')}"`).join(",")).join("\r\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download="台水查繳費結果.csv";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
-if("serviceWorker"in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js");
-load();
+function resetAll(){
+  if(!confirm("要清除所有照片與結果嗎？"))return;
+  state.photos.forEach(p=>URL.revokeObjectURL(p.url));state.photos=[];state.results=[];state.batch=0;$("ocrBar").style.width="0";render();renderResults();
+}
+render();renderResults();
 </script>
-</body></html>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
