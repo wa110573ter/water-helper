@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>虎尾所批次辨識水號捷徑｜建立步驟</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;background:#f4f7fb;color:#172033;margin:0}
+main{max-width:760px;margin:auto;padding:20px 14px 50px}.card{background:white;border:1px solid #d8e1ec;border-radius:18px;padding:18px;margin-bottom:14px}
+h1{font-size:25px}h2{font-size:19px}.step{display:flex;gap:12px;margin:15px 0}.n{min-width:32px;height:32px;border-radius:50%;background:#0f6cbd;color:white;display:flex;align-items:center;justify-content:center;font-weight:800}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#0f172a;color:#e2e8f0;border-radius:10px}code{padding:2px 5px}pre{padding:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+.note{background:#fff7e6;border:1px solid #eed39b;border-radius:12px;padding:12px;color:#744700}.good{background:#eaf8f2;border-color:#9ed8c2;color:#075d3d}
+</style></head><body><main>
+<div class="card"><h1>虎尾所批次辨識水號捷徑</h1>
+<p>用途：相簿一次選多張停水通知單，使用 iPhone 內建文字辨識，整理水號後複製到剪貼簿，再開啟 v10 網站。</p>
+<div class="note">捷徑檔案需要由 Apple 在 iPhone 上驗證與簽署，因此這裡提供可照著建立的動作順序。完成後可從捷徑 App 匯出或分享 iCloud 連結。</div>
+</div>
+
+<div class="card"><h2>捷徑名稱</h2><p><b>虎尾所批次辨識水號</b></p></div>
+
+<div class="card"><h2>依序加入下列動作</h2>
+<div class="step"><div class="n">1</div><div><b>選取照片</b><br>開啟「選取多張」。</div></div>
+<div class="step"><div class="n">2</div><div><b>重複每個項目</b><br>輸入使用「選取的照片」。</div></div>
+<div class="step"><div class="n">3</div><div><b>從影像擷取文字</b><br>影像使用「重複項目」。在動作搜尋欄輸入「擷取文字」或 <code>Extract Text</code>。</div></div>
+<div class="step"><div class="n">4</div><div><b>比對文字</b><br>輸入使用「擷取的文字」，開啟「正規表示式」，貼上：</div></div>
+<pre>(?i)[5S]\s*[MNH]\s*[-－—–:]?\s*[0-9OQDILTZSBG]{2}\s*[-－—–\s]\s*[0-9OQDILTZSBG]{4}\s*[-－—–\s]\s*[0-9OQDILTZSBG]{2}\s*[-－—–\s]\s*[0-9A-Z]</pre>
+
+<div class="step"><div class="n">5</div><div><b>如果</b><br>條件設成「比對的文字」<b>有任何值</b>。</div></div>
+<div class="step"><div class="n">6</div><div><b>取得列表中的項目</b><br>取得「比對的文字」中的「第一個項目」。</div></div>
+<div class="step"><div class="n">7</div><div><b>取代文字</b><br>開啟正規表示式，把下列內容取代成空白：</div></div>
+<pre>[-－—–\s:]</pre>
+
+<div class="step"><div class="n">8</div><div><b>取代文字</b><br>開啟正規表示式，把開頭前綴取代成空白：</div></div>
+<pre>(?i)^[5S][MNH]</pre>
+
+<div class="step"><div class="n">9</div><div><b>依序加入「取代文字」</b><br>不要開正規表示式，對目前文字依序做：<br>
+O→0、Q→0、D→0、I→1、L→1、T→1、Z→2、S→5、G→6、B→8。</div></div>
+
+<div class="step"><div class="n">10</div><div><b>文字</b><br>內容輸入 <code>5M</code>，後面插入上一個「取代後的文字」變數。</div></div>
+<div class="step"><div class="n">11</div><div><b>加入變數</b><br>建立變數名稱 <b>水號結果</b>，把第 10 步文字加入。</div></div>
+<div class="step"><div class="n">12</div><div><b>否則</b><br>用「文字」加入 <code>找不到</code>，再加入另一個變數 <b>失敗照片</b>。這一步可選擇不做。</div></div>
+<div class="step"><div class="n">13</div><div><b>結束如果</b>，再<b>結束重複</b>。</div></div>
+<div class="step"><div class="n">14</div><div><b>合併文字</b><br>輸入「水號結果」，分隔符號選「新行」。</div></div>
+<div class="step"><div class="n">15</div><div><b>複製到剪貼板</b><br>複製「合併的文字」。</div></div>
+<div class="step"><div class="n">16</div><div><b>打開 URL</b><br>URL 填入：</div></div>
+<pre>https://wa110573ter.github.io/water-helper/?v=10</pre>
+</div>
+
+<div class="card good"><h2>完成後的操作</h2>
+<p>執行捷徑 → 一次勾選多張照片 → 等待辨識 → 網站自動開啟 → 按「從剪貼簿貼上並整理」。</p>
+<p>結果範例：</p>
+<pre>5M920958006
+5M922473556
+5M923093005</pre>
+</div>
+
+<div class="card"><h2>重要限制</h2>
+<p>這套規則只收完整的停水單格式，沒有辨識到接近 <code>5M-XX-XXXX-XX-X</code> 時會略過，不會從日期或代繳帳號猜水號。辨識失敗的照片可在「照片」App 用原況文字確認後手動補入網站。</p>
+</div>
+</main></body></html>
