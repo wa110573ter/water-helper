@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0f6cbd">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="台水查繳費">
-<title>台水查繳費助手 v10</title>
+<title>台水查繳費助手 v11</title>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
 :root{--bg:#f3f6fa;--card:#fff;--ink:#162033;--muted:#64748b;--line:#d8e1ec;--blue:#0f6cbd;--green:#11875d;--red:#b42318;--gold:#a15c00}
@@ -32,11 +32,11 @@ input[type=file]{display:none}.pick{flex:1 1 210px}
 .ok{color:var(--green);font-weight:800}.bad{color:var(--red);font-weight:800}.warn{color:var(--gold);font-weight:800}.hidden{display:none!important}
 @media(max-width:720px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.head{padding-top:calc(12px + env(safe-area-inset-top))}button,.btn{flex:1 1 auto}}
 </style>
-<link rel="manifest" href="manifest.webmanifest?v=10">
-<link rel="apple-touch-icon" href="icon-192.png?v=10">
+<link rel="manifest" href="manifest.webmanifest?v=11">
+<link rel="apple-touch-icon" href="icon-192.png?v=11">
 </head>
 <body>
-<header><div class="head"><div><h1>💧 台水查繳費助手</h1><div class="ver">v10｜搭配 iPhone 捷徑・不在網站做 OCR</div></div><button class="gray" onclick="clearAll()">清除</button></div></header>
+<header><div class="head"><div><h1>💧 台水查繳費助手</h1><div class="ver">v11｜捷徑 OCR 文字解析修正版</div></div><button class="gray" onclick="clearAll()">清除</button></div></header>
 <main>
 <div class="grid">
 <section class="card">
@@ -83,43 +83,75 @@ function digitFix(ch){return ({O:"0",Q:"0",D:"0",I:"1",L:"1",T:"1",Z:"2",S:"5",B
 function normalizeBody(body){
   const a=String(body||"").toUpperCase().replace(/[^0-9A-Z]/g,"").split("");
   if(a.length!==9)return "";
-  for(let i=0;i<8;i++){a[i]=digitFix(a[i]);if(!/[0-9]/.test(a[i]))return ""}
+  for(let i=0;i<8;i++){
+    a[i]=digitFix(a[i]);
+    if(!/[0-9]/.test(a[i]))return "";
+  }
   a[8]=({O:"0",I:"1",L:"1"}[a[8]]||a[8]);
   return /[0-9A-Z]/.test(a[8])?a.join(""):"";
 }
+function normalizeOCRText(text){
+  return String(text||"")
+    .normalize("NFKC")
+    .toUpperCase()
+    .replace(/[Ｍｍ]/g,"M")
+    .replace(/[５]/g,"5")
+    // 將 iPhone OCR 可能產生的各種橫線全部統一
+    .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212\uFE58\uFE63\uFF0D]/g,"-");
+}
+function parseWaterCandidate(segment){
+  let compact=normalizeOCRText(segment).replace(/[^0-9A-Z]/g,"");
+  const match=compact.match(/[5S][MNH]/);
+  if(!match)return "";
+  compact=compact.slice(match.index);
+  if(compact.length<11)return "";
+
+  // 把 SM、5N、5H 等 OCR 誤判統一視為 5M。
+  const body=normalizeBody(compact.slice(2,11));
+  return body?("5M"+body):"";
+}
 function collectWaters(text){
-  let raw=String(text||"").toUpperCase()
-    .replace(/[Ｍｍ]/g,"M").replace(/[５]/g,"5")
-    .replace(/[－—–_]/g,"-");
+  const raw=normalizeOCRText(text);
   const found=[];
-  const usedRanges=[];
+  let prefixCount=0;
 
-  // 停水單印刷格式：5M-XX-XXXX-XX-X；容許 OCR 把 5M 看成 SM/5N/5H。
-  const printed=/[5S]\s*[MNH]\s*[-:\s]?\s*([0-9OQDILTZSBG]{2})\s*[-\s]\s*([0-9OQDILTZSBG]{4})\s*[-\s]\s*([0-9OQDILTZSBG]{2})\s*[-\s]\s*([0-9A-Z])/g;
-  for(const m of raw.matchAll(printed)){
-    const body=normalizeBody(m[1]+m[2]+m[3]+m[4]);
-    if(body){found.push("5M"+body);usedRanges.push([m.index,m.index+m[0].length])}
+  // 第一層：逐行找水號。這可直接處理：
+  // 5M-92-2473-55-6、5M‑92‑2473‑55‑6、5M 92 2473 55 6 等格式。
+  const lines=raw.split(/\r?\n/);
+  for(const line of lines){
+    if(/[5S]\s*[MNH]/.test(line)){
+      prefixCount++;
+      const water=parseWaterCandidate(line);
+      if(water)found.push(water);
+    }
   }
 
-  // 已整理好的查詢格式：5M + 9碼。
-  const compact=raw.replace(/[^0-9A-Z]/g," ");
-  const direct=/[5S][MNH]([0-9A-Z]{9})/g;
-  for(const m of compact.matchAll(direct)){
-    const body=normalizeBody(m[1]);
-    if(body)found.push("5M"+body);
+  // 第二層：OCR 偶爾會把水號拆成相鄰兩行，合併兩行再嘗試。
+  for(let i=0;i<lines.length-1;i++){
+    const pair=lines[i]+" "+lines[i+1];
+    if(/[5S]\s*[MNH]/.test(pair)){
+      const water=parseWaterCandidate(pair);
+      if(water)found.push(water);
+    }
   }
 
-  // 部分 OCR 會在 M 後多讀一個版面字元 1：5M1XX-XXXX-XX-X。
-  const extra=/[5S]\s*[MNH]\s*1\s*([0-9OQDILTZSBG]{2})\s*[-\s]\s*([0-9OQDILTZSBG]{4})\s*[-\s]\s*([0-9OQDILTZSBG]{2})\s*[-\s]\s*([0-9A-Z])/g;
-  for(const m of raw.matchAll(extra)){
-    const body=normalizeBody(m[1]+m[2]+m[3]+m[4]);
-    if(body)found.push("5M"+body);
+  // 第三層：保留對已整理完成格式 5MXXXXXXXXX 的支援。
+  for(const m of raw.matchAll(/[5S]\s*[MNH](?:[^0-9A-Z]*[0-9A-Z]){9}/g)){
+    const water=parseWaterCandidate(m[0]);
+    if(water)found.push(water);
   }
 
-  const unique=[],seen=new Set();let dup=0;
-  for(const w of found){if(seen.has(w))dup++;else{seen.add(w);unique.push(w)}}
-  const likelySegments=(raw.match(/[5S]\s*[MNH]/g)||[]).length;
-  return {waters:unique,duplicates:dup,invalid:Math.max(0,likelySegments-found.length)};
+  const unique=[],seen=new Set();
+  let dup=0;
+  for(const w of found){
+    if(seen.has(w))dup++;
+    else{seen.add(w);unique.push(w)}
+  }
+  return {
+    waters:unique,
+    duplicates:dup,
+    invalid:Math.max(0,prefixCount-unique.length)
+  };
 }
 function save(){localStorage.setItem(KEY,JSON.stringify({source:state.source,waters:state.waters,batch:state.batch}))}
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY)||"{}");state.source=s.source||"";state.waters=Array.isArray(s.waters)?s.waters:[];state.batch=s.batch||0;$("source").value=state.source}catch(e){}render()}
@@ -183,6 +215,6 @@ function exportCSV(){const rows=[["水號","期別","狀態","金額","銷帳日
 function clearAll(){if(!confirm("要清除水號與查詢結果嗎？"))return;state.source="";state.waters=[];state.duplicates=0;state.invalid=0;state.batch=0;state.results=[];$("source").value="";localStorage.removeItem(KEY);render();renderResults()}
 load();renderResults();
 </script>
-<script>if("serviceWorker" in navigator){window.addEventListener("load",async()=>{const regs=await navigator.serviceWorker.getRegistrations();for(const r of regs)await r.unregister();navigator.serviceWorker.register("./sw.js?v=10").catch(()=>{})})}</script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",async()=>{const regs=await navigator.serviceWorker.getRegistrations();for(const r of regs)await r.unregister();navigator.serviceWorker.register("./sw.js?v=11").catch(()=>{})})}</script>
 </body>
 </html>
