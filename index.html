@@ -2,450 +2,134 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#0f6cbd">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="拍單查繳費">
-<title>台水拍單查繳費助手 v3</title>
+<title>台水拍單查繳費助手 v6</title>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
 :root{--bg:#f3f6fa;--card:#fff;--ink:#162033;--muted:#64748b;--line:#d8e1ec;--blue:#0f6cbd;--green:#11875d;--red:#b42318;--gold:#a15c00}
-*{box-sizing:border-box}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif}
+body.locked{overflow:hidden;touch-action:none}
 header{position:sticky;top:0;z-index:5;background:#f3f6faee;backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
 .head{max-width:1120px;margin:auto;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px}
-h1{font-size:21px;margin:0}.ver{font-size:12px;color:var(--muted)}
+h1{font-size:21px;margin:0}.ver{font-size:12px;color:var(--muted);margin-top:3px}
 main{max-width:1120px;margin:16px auto;padding:0 12px 50px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 8px 24px #0f172a0d}
-h2{font-size:18px;margin:0 0 10px}
-.row{display:flex;gap:9px;flex-wrap:wrap;margin-top:10px}
-button,.btn{border:0;border-radius:12px;padding:11px 14px;font-size:16px;font-weight:700;min-height:45px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
-.primary{background:var(--blue);color:#fff}.green{background:var(--green);color:#fff}.soft{background:#e9f2fb;color:#0b5797}.gray{background:#eef1f5;color:#334155}.gold{background:#fff0d7;color:#7a4300}.danger{background:#fdecec;color:var(--red)}
-input[type=file]{display:none}
-.pick{flex:1 1 220px}
-.note{background:#fff7e6;border:1px solid #eed39b;color:#744700;border-radius:12px;padding:11px;line-height:1.55;font-size:14px}
-.stats{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.pill{background:#eef3f8;border-radius:999px;padding:7px 10px;font-size:14px}
-.progress{height:12px;background:#e5eaf0;border-radius:999px;overflow:hidden}.progress>div{height:100%;background:var(--green);width:0;transition:.2s}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
-.photo{border:1px solid var(--line);border-radius:15px;padding:10px;background:#fff}
-.photo img{width:100%;height:180px;object-fit:cover;border-radius:10px;background:#eef1f5}
-.small{font-size:13px;color:var(--muted)}
+h2{font-size:18px;margin:0 0 10px}.row{display:flex;gap:9px;flex-wrap:wrap;margin-top:10px}
+button,.btn{border:0;border-radius:12px;padding:11px 14px;font-size:16px;font-weight:750;min-height:45px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+button:disabled{opacity:.55;cursor:not-allowed}.primary{background:var(--blue);color:#fff}.green{background:var(--green);color:#fff}.soft{background:#e9f2fb;color:#0b5797}.gray{background:#eef1f5;color:#334155}.gold{background:#fff0d7;color:#7a4300}.danger{background:#fdecec;color:var(--red)}
+input[type=file]{display:none}.pick{flex:1 1 220px}.note{background:#fff7e6;border:1px solid #eed39b;color:#744700;border-radius:12px;padding:11px;line-height:1.55;font-size:14px}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.pill{background:#eef3f8;border-radius:999px;padding:7px 10px;font-size:14px}.small{font-size:13px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}.photo{border:1px solid var(--line);border-radius:15px;padding:10px;background:#fff}.photo .mainPhoto{width:100%;height:180px;object-fit:cover;border-radius:10px;background:#eef1f5}.cropPreview{width:100%;height:82px;object-fit:contain;border:2px solid #8ab8dc;border-radius:10px;background:#f8fafc;margin-top:8px}.cropEmpty{height:82px;border:2px dashed #b5c3d3;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--muted);margin-top:8px;background:#f8fafc}
 .status{font-weight:800}.ok{color:var(--green)}.bad{color:var(--red)}.warn{color:var(--gold)}
-input[type=text],textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:15px}
-.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:13px;max-height:620px}
-table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{position:sticky;top:0;background:#f1f5f9}
-.batch{background:#0f172a;color:#e2e8f0;border-radius:14px;padding:13px;min-height:90px;white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-.hidden{display:none!important}
-@media(max-width:560px){button,.btn{flex:1 1 auto}.photo img{height:150px}}
-.cameraOverlay{position:fixed;inset:0;background:#000;z-index:100;display:flex;flex-direction:column}
-.cameraOverlay.hidden{display:none}
-.cameraTop{height:58px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;color:#fff;background:#000}
-.cameraView{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000}
-.cameraView video{width:100%;height:100%;object-fit:cover}
-.cameraGuide{position:absolute;inset:10% 7%;border:3px solid rgba(255,255,255,.8);border-radius:16px;box-shadow:0 0 0 9999px rgba(0,0,0,.18);pointer-events:none}
-.cameraHint{position:absolute;top:15px;left:50%;transform:translateX(-50%);background:#000a;color:#fff;padding:7px 11px;border-radius:999px;font-size:13px;white-space:nowrap}
-.cameraBottom{padding:14px 16px calc(14px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:space-around;background:#000;color:#fff}
-.shutter{width:76px;height:76px;border-radius:50%;border:6px solid #fff;background:#ddd;box-shadow:inset 0 0 0 4px #000;padding:0;min-height:0}
-.cameraSmall{background:#222;color:#fff;border:1px solid #555}
-.cameraCounter{min-width:86px;text-align:center;font-weight:800}
+input[type=text]{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px;font-size:17px;font-weight:750;letter-spacing:.4px}.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:13px;max-height:620px}table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{position:sticky;top:0;background:#f1f5f9}.batch{background:#0f172a;color:#e2e8f0;border-radius:14px;padding:13px;min-height:90px;white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.hidden{display:none!important}
+.cameraOverlay,.cropOverlay{position:fixed;inset:0;background:#000;z-index:100;display:flex;flex-direction:column}.cameraTop,.cropTop{min-height:58px;padding:8px 12px calc(8px + env(safe-area-inset-top));display:flex;align-items:center;justify-content:space-between;color:#fff;background:#000;gap:8px}.cameraView{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000}.cameraView video{width:100%;height:100%;object-fit:cover}.cameraGuide{position:absolute;inset:8% 5%;border:3px solid rgba(255,255,255,.85);border-radius:16px;box-shadow:0 0 0 9999px rgba(0,0,0,.16);pointer-events:none}.cameraHint{position:absolute;top:15px;left:50%;transform:translateX(-50%);background:#000b;color:#fff;padding:7px 11px;border-radius:999px;font-size:13px;white-space:nowrap}.cameraBottom{padding:14px 16px calc(14px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:space-around;background:#000;color:#fff}.shutter{width:76px;height:76px;border-radius:50%;border:6px solid #fff;background:#ddd;box-shadow:inset 0 0 0 4px #000;padding:0;min-height:0}.darkBtn{background:#222;color:#fff;border:1px solid #555;min-height:40px;padding:8px 11px}.cameraCounter{min-width:86px;text-align:center;font-weight:800}
+.cropStage{position:relative;flex:1;min-height:0;background:#101010;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none}.cropStage canvas{width:100%;height:100%;display:block;touch-action:none}.cropHelp{position:absolute;top:12px;left:50%;transform:translateX(-50%);max-width:88%;background:#000c;color:#fff;padding:8px 12px;border-radius:999px;font-size:13px;text-align:center;pointer-events:none}.cropBottom{background:#000;color:#fff;padding:10px 12px calc(12px + env(safe-area-inset-bottom))}.cropBottom .row{margin:0;justify-content:center}.cropBottom button{flex:1 1 130px}.cropResult{font-size:15px;text-align:center;min-height:24px;margin-bottom:8px;color:#fff}.cropResult.bad{color:#ff8e86}.cropResult.ok{color:#82e7bd}
+@media(max-width:560px){button,.btn{flex:1 1 auto}.photo .mainPhoto{height:155px}.head{padding-top:calc(12px + env(safe-area-inset-top))}}
 </style>
-<link rel="manifest" href="manifest.webmanifest?v=5">
-<link rel="apple-touch-icon" href="icon-192.png?v=5">
+<link rel="manifest" href="manifest.webmanifest?v=6">
+<link rel="apple-touch-icon" href="icon-192.png?v=6">
 </head>
 <body>
-<header><div class="head"><div><h1>📸 台水拍單查繳費助手</h1><div class="ver">v5｜虎尾所停水單專用：自動旋轉，只輸出水號</div></div><button class="gray" onclick="resetAll()">清除全部</button></div></header>
-
+<header><div class="head"><div><h1>📸 台水拍單查繳費助手</h1><div class="ver">v6｜先框住水號，再辨識；不再從整張單亂猜</div></div><button class="gray" onclick="resetAll()">清除全部</button></div></header>
 <main>
 <section class="card">
-<h2>1. 拍照或從相簿選取</h2>
-<div class="row">
-<button class="btn primary pick" onclick="openLiveCamera()">📷 開啟連續相機</button>
-<label class="btn soft pick">🖼️ 相簿一次選很多張<input id="gallery" type="file" accept="image/*" multiple></label>
-<label class="btn gray pick">單張相機備用<input id="camera" type="file" accept="image/*" capture="environment"></label>
-</div>
-<div class="note">虎尾所停水單專用：會自動嘗試四個方向，辨識印刷格式 5M1xx-xxxx-xx-x，並轉成查詢格式 5Mxxxxxxxxx。畫面只顯示最後水號。</div>
-<div class="stats"><span class="pill" id="photoCount">照片 0 張</span><span class="pill" id="ocrCount">已辨識 0 張</span><span class="pill" id="waterCount">有效水號 0 筆</span></div>
-<div class="progress"><div id="ocrBar"></div></div>
-<div class="row"><button class="green" onclick="startOCR()">🤖 開始批次辨識</button><button class="gray" onclick="stopOCR()">停止</button></div>
+<h2>1. 拍照或選取照片</h2>
+<div class="row"><button class="btn primary pick" onclick="openLiveCamera()">📷 開啟連續相機</button><label class="btn soft pick">🖼️ 相簿一次選很多張<input id="gallery" type="file" accept="image/*" multiple></label><label class="btn gray pick">單張相機備用<input id="camera" type="file" accept="image/*" capture="environment"></label></div>
+<div class="note"><b>這版不辨識整張單。</b>每張照片請按「框選水號」，用手指只框住印刷的水號那一行，例如 <b>5M192-0958-00-6</b>。系統才會轉成 <b>5M920958006</b>。</div>
+<div class="stats"><span class="pill" id="photoCount">照片 0 張</span><span class="pill" id="cropCount">已框選 0 張</span><span class="pill" id="waterCount">有效水號 0 筆</span></div>
+<div class="row"><button class="green" onclick="openNextPendingCrop()">依序框選下一張</button></div>
 </section>
-
-<section class="card">
-<h2>2. 照片與辨識結果</h2>
-<div id="photoGrid" class="grid"></div>
-<div id="emptyPhotos" class="small">尚未加入照片。</div>
-</section>
-
-<section class="card">
-<h2>3. 水號名單與每 9 筆分批</h2>
-<div class="stats"><span class="pill" id="batchInfo">第 0／0 批</span><span class="pill" id="dedupeInfo">去重後 0 筆</span></div>
-<div id="batchBox" class="batch">尚無水號</div>
-<div class="row"><button class="soft" onclick="prevBatch()">上一批</button><button class="soft" onclick="nextBatch()">下一批</button></div>
-<div class="row">
-<button class="green" onclick="downloadODS()">📥 下載本批官方 ODS</button>
-<a class="btn gold" target="_blank" rel="noopener" href="https://www.water.gov.tw/ch/EQuery/WaterFeeQuery?nodeId=753">🌐 開啟台水查詢頁</a>
-</div>
-</section>
-
-<section class="card">
-<h2>4. 匯入台水查詢結果 ODS</h2>
-<label class="btn soft pick">📂 選擇查詢結果 ODS<input id="resultFile" type="file" accept=".ods"></label>
-<div id="resultStats" class="stats"></div>
-<div id="resultWrap" class="tablewrap hidden">
-<table><thead><tr><th>水號</th><th>期別</th><th>狀態</th><th>金額</th><th>銷帳日</th></tr></thead><tbody id="resultBody"></tbody></table>
-</div>
-<div class="row"><button id="csvBtn" class="soft hidden" onclick="exportCSV()">匯出 CSV</button></div>
-</section>
+<section class="card"><h2>2. 照片、裁切區與水號</h2><div id="photoGrid" class="grid"></div><div id="emptyPhotos" class="small">尚未加入照片。</div></section>
+<section class="card"><h2>3. 水號名單與每 9 筆分批</h2><div class="stats"><span class="pill" id="batchInfo">第 0／0 批</span><span class="pill" id="dedupeInfo">去重後 0 筆</span></div><div id="batchBox" class="batch">尚無水號</div><div class="row"><button class="soft" onclick="prevBatch()">上一批</button><button class="soft" onclick="nextBatch()">下一批</button></div><div class="row"><button class="green" onclick="downloadODS()">📥 下載本批官方 ODS</button><a class="btn gold" target="_blank" rel="noopener" href="https://www.water.gov.tw/ch/EQuery/WaterFeeQuery?nodeId=753">🌐 開啟台水查詢頁</a></div></section>
+<section class="card"><h2>4. 匯入台水查詢結果 ODS</h2><label class="btn soft pick">📂 選擇查詢結果 ODS<input id="resultFile" type="file" accept=".ods"></label><div id="resultStats" class="stats"></div><div id="resultWrap" class="tablewrap hidden"><table><thead><tr><th>水號</th><th>期別</th><th>狀態</th><th>金額</th><th>銷帳日</th></tr></thead><tbody id="resultBody"></tbody></table></div><div class="row"><button id="csvBtn" class="soft hidden" onclick="exportCSV()">匯出 CSV</button></div></section>
 </main>
 
-<div id="cameraOverlay" class="cameraOverlay hidden">
-  <div class="cameraTop">
-    <button class="cameraSmall" onclick="closeLiveCamera()">完成</button>
-    <div>連續拍單</div>
-    <button class="cameraSmall" onclick="switchCamera()">切換</button>
-  </div>
-  <div class="cameraView">
-    <video id="liveVideo" autoplay muted playsinline></video>
-    <div class="cameraGuide"></div>
-    <div class="cameraHint">將整張單子放入框內，拍完可繼續拍</div>
-  </div>
-  <div class="cameraBottom">
-    <div class="cameraCounter" id="liveCount">已拍 0 張</div>
-    <button class="shutter" aria-label="拍照" onclick="captureLivePhoto()"></button>
-    <button class="cameraSmall" onclick="closeLiveCamera()">完成辨識</button>
-  </div>
-  <canvas id="cameraCanvas" class="hidden"></canvas>
-</div>
+<div id="cameraOverlay" class="cameraOverlay hidden"><div class="cameraTop"><button class="darkBtn" onclick="closeLiveCamera()">完成</button><div>連續拍單</div><button class="darkBtn" onclick="switchCamera()">切換</button></div><div class="cameraView"><video id="liveVideo" autoplay muted playsinline></video><div class="cameraGuide"></div><div class="cameraHint">先拍完整張單，稍後再框水號</div></div><div class="cameraBottom"><div class="cameraCounter" id="liveCount">已拍 0 張</div><button class="shutter" aria-label="拍照" onclick="captureLivePhoto()"></button><button class="darkBtn" onclick="closeLiveCamera()">完成</button></div><canvas id="cameraCanvas" class="hidden"></canvas></div>
+
+<div id="cropOverlay" class="cropOverlay hidden"><div class="cropTop"><button class="darkBtn" onclick="closeCropEditor()">取消</button><div id="cropTitle">框選水號</div><div style="display:flex;gap:6px"><button class="darkBtn" onclick="rotateCrop(-90)">↶</button><button class="darkBtn" onclick="rotateCrop(90)">↷</button></div></div><div id="cropStage" class="cropStage"><canvas id="cropCanvas"></canvas><div class="cropHelp">用手指拖曳，只框住水號那一行；框錯可直接重畫</div></div><div class="cropBottom"><div id="cropResult" class="cropResult">尚未框選</div><div class="row"><button class="darkBtn" onclick="resetSelection()">重畫</button><button id="confirmCropBtn" class="green" onclick="confirmCropAndOCR()">確認並辨識</button></div></div></div>
 
 <script>
-const state={photos:[],batch:0,results:[],stop:false};
-let liveStream=null;
-let liveFacing="environment";
-let liveStartCount=0;
+const state={photos:[],batch:0,results:[]};
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
-function normalizeWater(s){
-  return String(s||"").toUpperCase()
-    .replace(/[Ｍｍ]/g,"M")
-    .replace(/[５]/g,"5")
-    .replace(/[－—–_]/g,"-")
-    .replace(/\s+/g,"")
-    .replace(/[^0-9A-Z-]/g,"");
-}
-function digitFix(ch){
-  return ({"O":"0","Q":"0","D":"0","I":"1","L":"1","T":"1","Z":"2","S":"5","B":"8","G":"6"}[ch]||ch);
-}
-function cleanNine(s){
-  const a=String(s||"").toUpperCase().replace(/[^0-9A-Z]/g,"").split("");
-  if(a.length!==9)return "";
-  for(let i=0;i<8;i++){
-    a[i]=digitFix(a[i]);
-    if(!/[0-9]/.test(a[i]))return "";
-  }
-  a[8]=({"O":"0","I":"1","L":"1"}[a[8]]||a[8]);
-  return /[0-9A-Z]/.test(a[8])?a.join(""):"";
-}
-function toQueryWater(candidate){
-  let n=normalizeWater(candidate).replace(/-/g,"");
-  n=n.replace(/^S[MNH]/,"5M").replace(/^5[NH]/,"5M");
+let liveStream=null,liveFacing="environment",liveStartCount=0;
+let cropSession={photoId:null,bitmap:null,rotation:0,sourceCanvas:null,selection:null,drawing:false,start:null,transform:null};
 
-  // 停水單印刷格式：5M1xx-xxxx-xx-x
-  // 例如 5M192-0958-00-6 → 查詢格式 5M920958006
-  if(/^5M[1IL][0-9A-Z]{9}/.test(n)){
-    const body=cleanNine(n.slice(3,12));
-    return body?("5M"+body):"";
-  }
-
-  // 已經是查詢格式：5M + 9碼
-  if(/^5M[0-9A-Z]{9}/.test(n)){
-    const body=cleanNine(n.slice(2,11));
-    return body?("5M"+body):"";
-  }
-
-  // OCR 漏掉 5M，只讀到印刷格式的 1 + 9碼
-  if(/^[1IL][0-9A-Z]{9}$/.test(n)){
-    const body=cleanNine(n.slice(1));
-    return body?("5M"+body):"";
-  }
-
-  // OCR 只讀到後面9碼，直接補 5M
-  if(/^[0-9A-Z]{9}$/.test(n)){
-    const body=cleanNine(n);
-    return body?("5M"+body):"";
-  }
-  return "";
-}
-function findWater(text){
-  const raw=String(text||"").toUpperCase()
-    .replace(/[Ｍｍ]/g,"M")
-    .replace(/[５]/g,"5")
-    .replace(/[－—–_]/g,"-");
-
-  const candidates=[];
-
-  // 優先抓停水單的有橫線格式
-  for(const m of raw.matchAll(/[5S]\s*[MNH]\s*[1IL]?\s*[0-9A-Z]{2,3}\s*[-\s]\s*[0-9A-Z]{4}\s*[-\s]\s*[0-9A-Z]{2}\s*[-\s]\s*[0-9A-Z]/g)){
-    candidates.push(m[0]);
-  }
-
-  // 再抓連續英數格式
+function normalizeWaterInput(s){return String(s||"").toUpperCase().replace(/[Ｍｍ]/g,"M").replace(/[５]/g,"5").replace(/[^0-9A-Z]/g,"").slice(0,11)}
+function digitFix(ch){return ({O:"0",Q:"0",D:"0",I:"1",L:"1",T:"1",Z:"2",S:"5",B:"8",G:"6"}[ch]||ch)}
+function cleanNine(s){const a=String(s||"").toUpperCase().replace(/[^0-9A-Z]/g,"").split("");if(a.length!==9)return "";for(let i=0;i<8;i++){a[i]=digitFix(a[i]);if(!/[0-9]/.test(a[i]))return ""}a[8]=({O:"0",I:"1",L:"1"}[a[8]]||a[8]);return /[0-9A-Z]/.test(a[8])?a.join(""):""}
+function parsePrintedWater(text){
+  const raw=String(text||"").toUpperCase().replace(/[Ｍｍ]/g,"M").replace(/[５]/g,"5").replace(/[－—–_]/g,"-");
   const compact=raw.replace(/[^0-9A-Z]/g,"");
-  for(const m of compact.matchAll(/[5S][MNH][1IL]?[0-9A-Z]{9}/g)) candidates.push(m[0]);
-
-  // 漏掉 5M 的情況：1+9碼或單獨9碼
-  for(const token of raw.split(/[^0-9A-Z]+/).filter(Boolean)){
-    if(/^[1IL][0-9A-Z]{9}$/.test(token) || /^[0-9A-Z]{9}$/.test(token)) candidates.push(token);
-  }
-
-  for(const c of candidates){
-    const fixed=toQueryWater(c);
-    if(fixed) return fixed;
+  const candidates=[];
+  // 嚴格要求 OCR 文字中有 5M（或很接近的 SM/5N/5H），不再用任意9碼硬補。
+  for(const m of compact.matchAll(/[5S][MNH][1IL]?[0-9A-Z]{9}/g))candidates.push(m[0]);
+  for(const c0 of candidates){
+    let c=c0.replace(/^S[MNH]/,"5M").replace(/^5[NH]/,"5M");
+    if(!c.startsWith("5M"))continue;
+    let rest=c.slice(2);
+    if(/^[1IL]/.test(rest)&&rest.length>=10)rest=rest.slice(1); // 停水單多出的版面碼1
+    const body=cleanNine(rest.slice(0,9));
+    if(body)return "5M"+body;
   }
   return "";
 }
-async function addFiles(list){
-  for(const f of [...list]){
-    const url=URL.createObjectURL(f);
-    state.photos.push({id:crypto.randomUUID(),file:f,url,text:"",water:"",status:"待辨識",progress:0});
-  }
-  render();
+function findWaterInResult(text){
+  const raw=String(text||"").toUpperCase().replace(/[^0-9A-Z]/g,"");
+  const m=raw.match(/5M[0-9A-Z]{9}/);if(!m)return "";const body=cleanNine(m[0].slice(2));return body?"5M"+body:"";
 }
+async function addFiles(list){for(const f of [...list]){const url=URL.createObjectURL(f);state.photos.push({id:crypto.randomUUID(),file:f,url,cropUrl:"",cropBlob:null,water:"",status:"待框選",progress:0})}render()}
 $("camera").addEventListener("change",e=>{addFiles(e.target.files);e.target.value=""});
 $("gallery").addEventListener("change",e=>{addFiles(e.target.files);e.target.value=""});
-async function openLiveCamera(){
-  if(!navigator.mediaDevices?.getUserMedia){
-    alert("此瀏覽器不支援網頁連續相機，請改用「單張相機備用」或相簿多選。");
-    return;
-  }
-  if(location.protocol!=="https:" && location.hostname!=="localhost"){
-    alert("連續相機需要 HTTPS。請從 GitHub Pages 網址開啟，不要直接開啟本機 HTML。");
-    return;
-  }
-  liveStartCount=state.photos.length;
-  $("liveCount").textContent="已拍 0 張";
-  $("cameraOverlay").classList.remove("hidden");
-  document.body.style.overflow="hidden";
-  try{
-    await startLiveStream();
-  }catch(err){
-    closeLiveCamera();
-    alert("無法開啟相機："+err.message+"。請到 iPhone「設定 → Safari → 相機」允許使用。");
-  }
-}
-async function startLiveStream(){
-  if(liveStream) liveStream.getTracks().forEach(t=>t.stop());
-  liveStream=await navigator.mediaDevices.getUserMedia({
-    video:{
-      facingMode:{ideal:liveFacing},
-      width:{ideal:1920},
-      height:{ideal:2560}
-    },
-    audio:false
-  });
-  const video=$("liveVideo");
-  video.srcObject=liveStream;
-  await video.play();
-}
-async function switchCamera(){
-  liveFacing=liveFacing==="environment"?"user":"environment";
-  try{await startLiveStream()}catch(err){alert("切換相機失敗："+err.message)}
-}
-async function captureLivePhoto(){
-  const video=$("liveVideo");
-  if(!video.videoWidth){alert("相機尚未準備完成");return}
-  const canvas=$("cameraCanvas");
-  const maxWidth=1800;
-  const scale=Math.min(1,maxWidth/video.videoWidth);
-  canvas.width=Math.round(video.videoWidth*scale);
-  canvas.height=Math.round(video.videoHeight*scale);
-  const ctx=canvas.getContext("2d");
-  ctx.drawImage(video,0,0,canvas.width,canvas.height);
-  const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",0.9));
-  if(!blob)return;
-  const file=new File([blob],`water-slip-${Date.now()}.jpg`,{type:"image/jpeg"});
-  await addFiles([file]);
-  const count=state.photos.length-liveStartCount;
-  $("liveCount").textContent=`已拍 ${count} 張`;
-  if(navigator.vibrate) navigator.vibrate(40);
-}
-function closeLiveCamera(){
-  if(liveStream){liveStream.getTracks().forEach(t=>t.stop());liveStream=null}
-  $("liveVideo").srcObject=null;
-  $("cameraOverlay").classList.add("hidden");
-  document.body.style.overflow="";
-  const count=state.photos.length-liveStartCount;
-  if(count>0 && confirm(`已拍 ${count} 張。現在開始批次辨識嗎？`)) startOCR();
-}
-document.addEventListener("visibilitychange",()=>{
-  if(document.hidden && liveStream) closeLiveCamera();
-});
+
+async function openLiveCamera(){if(!navigator.mediaDevices?.getUserMedia){alert("此瀏覽器不支援連續相機，請改用單張相機或相簿。");return}if(location.protocol!=="https:"&&location.hostname!=="localhost"){alert("連續相機需要 HTTPS，請從 GitHub Pages 網址開啟。");return}liveStartCount=state.photos.length;$("liveCount").textContent="已拍 0 張";$("cameraOverlay").classList.remove("hidden");document.body.classList.add("locked");try{await startLiveStream()}catch(err){closeLiveCamera(false);alert("無法開啟相機："+err.message)}}
+async function startLiveStream(){if(liveStream)liveStream.getTracks().forEach(t=>t.stop());liveStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:liveFacing},width:{ideal:1920},height:{ideal:2560}},audio:false});$("liveVideo").srcObject=liveStream;await $("liveVideo").play()}
+async function switchCamera(){liveFacing=liveFacing==="environment"?"user":"environment";try{await startLiveStream()}catch(e){alert("切換相機失敗："+e.message)}}
+async function captureLivePhoto(){const v=$("liveVideo");if(!v.videoWidth)return;const c=$("cameraCanvas"),maxW=2000,scale=Math.min(1,maxW/v.videoWidth);c.width=Math.round(v.videoWidth*scale);c.height=Math.round(v.videoHeight*scale);c.getContext("2d").drawImage(v,0,0,c.width,c.height);const blob=await new Promise(r=>c.toBlob(r,"image/jpeg",.92));if(!blob)return;await addFiles([new File([blob],`water-slip-${Date.now()}.jpg`,{type:"image/jpeg"})]);$("liveCount").textContent=`已拍 ${state.photos.length-liveStartCount} 張`;if(navigator.vibrate)navigator.vibrate(40)}
+function closeLiveCamera(ask=true){if(liveStream){liveStream.getTracks().forEach(t=>t.stop());liveStream=null}$("liveVideo").srcObject=null;$("cameraOverlay").classList.add("hidden");document.body.classList.remove("locked");const n=state.photos.length-liveStartCount;if(ask&&n>0&&confirm(`已拍 ${n} 張。現在開始框選第一張嗎？`))openNextPendingCrop()}
 
 function render(){
-  $("photoCount").textContent=`照片 ${state.photos.length} 張`;
-  $("ocrCount").textContent=`已辨識 ${state.photos.filter(p=>p.status==="完成").length} 張`;
-  $("waterCount").textContent=`有效水號 ${waters().length} 筆`;
-  $("emptyPhotos").classList.toggle("hidden",state.photos.length>0);
-  $("photoGrid").innerHTML=state.photos.map((p,i)=>`
-  <article class="photo">
-    <img src="${p.url}" alt="第${i+1}張">
-    <div class="small">第 ${i+1} 張｜<span class="status ${p.status==="完成"?"ok":p.status.includes("找不到")||p.status==="失敗"?"bad":"warn"}">${esc(p.status)}</span> ${p.progress?`(${p.progress}%)`:""}</div>
-    <label class="small">辨識水號（可直接修正）</label>
-    <input type="text" inputmode="text" maxlength="11" value="${esc(p.water)}"
-      placeholder="例如 5M920958006" oninput="editField('${p.id}','water',this.value)">
-    <div class="row"><button class="soft" onclick="ocrOne('${p.id}')">重辨識</button><button class="danger" onclick="removePhoto('${p.id}')">刪除</button></div>
-  </article>`).join("");
-  renderBatch();
+  $("photoCount").textContent=`照片 ${state.photos.length} 張`;$("cropCount").textContent=`已框選 ${state.photos.filter(p=>p.cropBlob).length} 張`;$("waterCount").textContent=`有效水號 ${waters().length} 筆`;$("emptyPhotos").classList.toggle("hidden",state.photos.length>0);
+  $("photoGrid").innerHTML=state.photos.map((p,i)=>`<article class="photo"><img class="mainPhoto" src="${p.url}" alt="第${i+1}張"><div class="small">第 ${i+1} 張｜<span class="status ${p.status==="完成"?"ok":p.status.includes("失敗")||p.status.includes("找不到")?"bad":"warn"}">${esc(p.status)}</span>${p.progress?` (${p.progress}%)`:""}</div>${p.cropUrl?`<img class="cropPreview" src="${p.cropUrl}" alt="水號裁切區">`:`<div class="cropEmpty">尚未框選水號區</div>`}<label class="small">水號（可直接修正）</label><input type="text" maxlength="11" value="${esc(p.water)}" placeholder="例如 5M920958006" oninput="editWater('${p.id}',this.value)"><div class="row"><button class="primary" onclick="openCropEditor('${p.id}')">${p.cropBlob?"重新框選":"框選水號"}</button><button class="soft" onclick="ocrCrop('${p.id}')" ${p.cropBlob?"":"disabled"}>辨識裁切區</button><button class="danger" onclick="removePhoto('${p.id}')">刪除</button></div></article>`).join("");renderBatch();
 }
-function editField(id,key,val){const p=state.photos.find(x=>x.id===id);if(p){p.water=normalizeWater(val).replace(/-/g,"").slice(0,11);renderBatch()}}
-function removePhoto(id){const i=state.photos.findIndex(x=>x.id===id);if(i>=0){URL.revokeObjectURL(state.photos[i].url);state.photos.splice(i,1);render()}}
-function waters(){return [...new Set(state.photos.map(p=>toQueryWater(p.water)).filter(Boolean))]}
+function editWater(id,val){const p=state.photos.find(x=>x.id===id);if(!p)return;p.water=normalizeWaterInput(val);p.status=/^5M[0-9]{8}[0-9A-Z]$/.test(p.water)?"完成":"手動輸入中";renderBatch();$("waterCount").textContent=`有效水號 ${waters().length} 筆`}
+function removePhoto(id){const i=state.photos.findIndex(x=>x.id===id);if(i<0)return;URL.revokeObjectURL(state.photos[i].url);if(state.photos[i].cropUrl)URL.revokeObjectURL(state.photos[i].cropUrl);state.photos.splice(i,1);render()}
+function waters(){return [...new Set(state.photos.map(p=>p.water).filter(x=>/^5M[0-9]{8}[0-9A-Z]$/.test(x)))]}
+function openNextPendingCrop(){const p=state.photos.find(x=>!x.cropBlob);if(!p){alert(state.photos.length?"所有照片都已框選。":"請先加入照片。");return}openCropEditor(p.id)}
 
-async function makeOCRCanvas(file,rotation){
-  const bmp=await createImageBitmap(file);
-  const maxSide=2400;
-  const scale=Math.min(1,maxSide/Math.max(bmp.width,bmp.height));
-  const sw=Math.max(1,Math.round(bmp.width*scale));
-  const sh=Math.max(1,Math.round(bmp.height*scale));
-  const turn=((rotation%360)+360)%360;
-  const canvas=document.createElement("canvas");
-  if(turn===90||turn===270){canvas.width=sh;canvas.height=sw}else{canvas.width=sw;canvas.height=sh}
-  const ctx=canvas.getContext("2d",{willReadFrequently:true});
-  ctx.translate(canvas.width/2,canvas.height/2);
-  ctx.rotate(turn*Math.PI/180);
-  ctx.drawImage(bmp,-sw/2,-sh/2,sw,sh);
-  ctx.setTransform(1,0,0,1,0,0);
+async function openCropEditor(id){const p=state.photos.find(x=>x.id===id);if(!p)return;cropSession.photoId=id;cropSession.rotation=0;cropSession.selection=null;cropSession.bitmap=await createImageBitmap(p.file);$("cropTitle").textContent=`框選第 ${state.photos.indexOf(p)+1} 張水號`;$("cropResult").textContent="用手指拖曳框住水號那一行";$("cropResult").className="cropResult";$("cropOverlay").classList.remove("hidden");document.body.classList.add("locked");await prepareRotatedSource();requestAnimationFrame(drawCropEditor)}
+function closeCropEditor(){$("cropOverlay").classList.add("hidden");document.body.classList.remove("locked");cropSession={photoId:null,bitmap:null,rotation:0,sourceCanvas:null,selection:null,drawing:false,start:null,transform:null}}
+async function rotateCrop(delta){cropSession.rotation=(cropSession.rotation+delta+360)%360;cropSession.selection=null;await prepareRotatedSource();drawCropEditor();$("cropResult").textContent="已旋轉，請重新框選";$("cropResult").className="cropResult"}
+async function prepareRotatedSource(){const b=cropSession.bitmap,turn=cropSession.rotation,maxSide=3000,scale=Math.min(1,maxSide/Math.max(b.width,b.height)),sw=Math.round(b.width*scale),sh=Math.round(b.height*scale),c=document.createElement("canvas");if(turn===90||turn===270){c.width=sh;c.height=sw}else{c.width=sw;c.height=sh}const x=c.getContext("2d");x.translate(c.width/2,c.height/2);x.rotate(turn*Math.PI/180);x.drawImage(b,-sw/2,-sh/2,sw,sh);cropSession.sourceCanvas=c}
+function sizeCropCanvas(){const stage=$("cropStage"),c=$("cropCanvas"),r=stage.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);c.width=Math.max(1,Math.round(r.width*dpr));c.height=Math.max(1,Math.round(r.height*dpr));c.style.width=r.width+"px";c.style.height=r.height+"px";return {w:r.width,h:r.height,dpr}}
+function drawCropEditor(){if(!cropSession.sourceCanvas)return;const c=$("cropCanvas"),{w,h,dpr}=sizeCropCanvas(),ctx=c.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);const s=cropSession.sourceCanvas,scale=Math.min(w/s.width,h/s.height),dw=s.width*scale,dh=s.height*scale,ox=(w-dw)/2,oy=(h-dh)/2;cropSession.transform={scale,ox,oy,w,h};ctx.fillStyle="#101010";ctx.fillRect(0,0,w,h);ctx.drawImage(s,ox,oy,dw,dh);if(cropSession.selection){const q=normRect(cropSession.selection);ctx.save();ctx.fillStyle="rgba(0,0,0,.58)";ctx.fillRect(0,0,w,h);ctx.clearRect(q.x,q.y,q.w,q.h);ctx.drawImage(s,(q.x-ox)/scale,(q.y-oy)/scale,q.w/scale,q.h/scale,q.x,q.y,q.w,q.h);ctx.strokeStyle="#00e6ff";ctx.lineWidth=3;ctx.strokeRect(q.x,q.y,q.w,q.h);ctx.fillStyle="#00e6ff";for(const [x,y] of [[q.x,q.y],[q.x+q.w,q.y],[q.x,q.y+q.h],[q.x+q.w,q.y+q.h]])ctx.fillRect(x-6,y-6,12,12);ctx.restore()}}
+function canvasPoint(e){const r=$("cropCanvas").getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top}}
+function normRect(r){return {x:Math.min(r.x,r.x+r.w),y:Math.min(r.y,r.y+r.h),w:Math.abs(r.w),h:Math.abs(r.h)}}
+$("cropCanvas").addEventListener("pointerdown",e=>{e.preventDefault();$("cropCanvas").setPointerCapture(e.pointerId);cropSession.drawing=true;cropSession.start=canvasPoint(e);cropSession.selection={x:cropSession.start.x,y:cropSession.start.y,w:0,h:0};drawCropEditor()});
+$("cropCanvas").addEventListener("pointermove",e=>{if(!cropSession.drawing)return;e.preventDefault();const p=canvasPoint(e);cropSession.selection.w=p.x-cropSession.start.x;cropSession.selection.h=p.y-cropSession.start.y;drawCropEditor()});
+$("cropCanvas").addEventListener("pointerup",e=>{if(!cropSession.drawing)return;cropSession.drawing=false;const q=normRect(cropSession.selection);if(q.w<35||q.h<20){cropSession.selection=null;$("cropResult").textContent="框選範圍太小，請重畫";$("cropResult").className="cropResult bad"}else{$("cropResult").textContent="已框選，可按確認並辨識";$("cropResult").className="cropResult ok"}drawCropEditor()});
+window.addEventListener("resize",()=>{if(!$("cropOverlay").classList.contains("hidden"))drawCropEditor()});
+function resetSelection(){cropSession.selection=null;$("cropResult").textContent="請重新拖曳框選";$("cropResult").className="cropResult";drawCropEditor()}
+async function makeCropBlob(){const q=normRect(cropSession.selection),t=cropSession.transform,s=cropSession.sourceCanvas;let sx=(q.x-t.ox)/t.scale,sy=(q.y-t.oy)/t.scale,sw=q.w/t.scale,sh=q.h/t.scale;sx=Math.max(0,sx);sy=Math.max(0,sy);sw=Math.min(s.width-sx,sw);sh=Math.min(s.height-sy,sh);const padX=sw*.05,padY=sh*.22;sx=Math.max(0,sx-padX);sy=Math.max(0,sy-padY);sw=Math.min(s.width-sx,sw+padX*2);sh=Math.min(s.height-sy,sh+padY*2);const targetW=Math.max(1400,Math.min(2600,Math.round(sw*2))),targetH=Math.max(180,Math.round(targetW*sh/sw));const out=document.createElement("canvas");out.width=targetW;out.height=targetH;const x=out.getContext("2d",{willReadFrequently:true});x.imageSmoothingEnabled=true;x.imageSmoothingQuality="high";x.drawImage(s,sx,sy,sw,sh,0,0,targetW,targetH);return await new Promise(r=>out.toBlob(r,"image/jpeg",.95))}
+async function confirmCropAndOCR(){if(!cropSession.selection){$("cropResult").textContent="請先框住水號";$("cropResult").className="cropResult bad";return}const btn=$("confirmCropBtn");btn.disabled=true;btn.textContent="處理中…";try{const blob=await makeCropBlob(),p=state.photos.find(x=>x.id===cropSession.photoId);if(!p)return;if(p.cropUrl)URL.revokeObjectURL(p.cropUrl);p.cropBlob=blob;p.cropUrl=URL.createObjectURL(blob);p.status="已框選，辨識中";closeCropEditor();render();await ocrCrop(p.id)}catch(e){alert("裁切失敗："+e.message)}finally{btn.disabled=false;btn.textContent="確認並辨識"}}
+function preprocessCrop(blob,mode){return new Promise(async(resolve,reject)=>{try{const b=await createImageBitmap(blob),c=document.createElement("canvas");c.width=b.width;c.height=b.height;const x=c.getContext("2d",{willReadFrequently:true});x.drawImage(b,0,0);if(mode!=="color"){const im=x.getImageData(0,0,c.width,c.height),d=im.data;for(let i=0;i<d.length;i+=4){const g=.299*d[i]+.587*d[i+1]+.114*d[i+2];let v;if(mode==="binary")v=g<185?0:255;else v=Math.max(0,Math.min(255,(g-128)*1.7+128));d[i]=d[i+1]=d[i+2]=v}x.putImageData(im,0,0)}resolve(c)}catch(e){reject(e)}})}
+async function ocrCrop(id){const p=state.photos.find(x=>x.id===id);if(!p?.cropBlob){alert("請先框選水號區。");return}p.status="辨識中";p.progress=0;p.water="";render();try{const modes=["gray","binary","color"];let all="";for(let i=0;i<modes.length;i++){const canvas=await preprocessCrop(p.cropBlob,modes[i]);const ret=await Tesseract.recognize(canvas,"eng",{logger:m=>{if(m.status==="recognizing text"){p.progress=Math.min(99,Math.round((i+(m.progress||0))/modes.length*100));render()}},tessedit_char_whitelist:"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-",tessedit_pageseg_mode:"7",preserve_interword_spaces:"1"});all+=" "+(ret.data.text||"");const found=parsePrintedWater(ret.data.text||"");if(found){p.water=found;p.status="完成";p.progress=100;render();return}}p.status="找不到水號，請重新框選或手動輸入";p.progress=100;render()}catch(e){p.status="辨識失敗";p.progress=100;render();alert("辨識失敗："+e.message)}}
 
-  const im=ctx.getImageData(0,0,canvas.width,canvas.height);
-  const d=im.data;
-  for(let i=0;i<d.length;i+=4){
-    const g=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
-    const v=g<135?0:g>225?255:Math.max(0,Math.min(255,(g-128)*2.15+128));
-    d[i]=d[i+1]=d[i+2]=v;
-  }
-  ctx.putImageData(im,0,0);
-  return canvas;
-}
-async function recognizeWaterCanvas(canvas,p,rotationIndex){
-  const ret=await Tesseract.recognize(canvas,"eng",{
-    logger:m=>{
-      if(m.status==="recognizing text"){
-        const local=Math.round((m.progress||0)*25);
-        p.progress=Math.min(99,rotationIndex*25+local);
-        render();
-      }
-    },
-    tessedit_char_whitelist:"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-",
-    tessedit_pageseg_mode:"11",
-    preserve_interword_spaces:"1"
-  });
-  return ret.data.text||"";
-}
-async function ocrOne(id){
-  const p=state.photos.find(x=>x.id===id); if(!p)return;
-  p.status="辨識中";p.progress=0;p.water="";render();
-  try{
-    const rotations=[0,90,270,180];
-    const allText=[];
-    for(let i=0;i<rotations.length;i++){
-      const canvas=await makeOCRCanvas(p.file,rotations[i]);
-      const text=await recognizeWaterCanvas(canvas,p,i);
-      allText.push(text);
-      const found=findWater(text);
-      if(found){
-        p.text=allText.join("\n---\n");
-        p.water=found;
-        p.status="完成";
-        p.progress=100;
-        render();
-        return;
-      }
-    }
-    p.text=allText.join("\n---\n");
-    p.status="找不到水號";
-  }catch(e){
-    p.status="失敗";
-    p.text=(p.text||"")+"\n"+e.message;
-  }
-  p.progress=100;render();
-}
-async function startOCR(){
-  state.stop=false;
-  const targets=state.photos.filter(p=>p.status!=="完成");
-  for(let i=0;i<targets.length;i++){
-    if(state.stop)break;
-    await ocrOne(targets[i].id);
-    $("ocrBar").style.width=`${Math.round(((i+1)/targets.length)*100)}%`;
-  }
-}
-function stopOCR(){state.stop=true}
 function batches(){const w=waters(),out=[];for(let i=0;i<w.length;i+=9)out.push(w.slice(i,i+9));return out}
-function renderBatch(){
-  const bs=batches();
-  if(state.batch>=bs.length)state.batch=Math.max(0,bs.length-1);
-  $("batchInfo").textContent=`第 ${bs.length?state.batch+1:0}／${bs.length} 批`;
-  $("dedupeInfo").textContent=`去重後 ${waters().length} 筆`;
-  $("batchBox").textContent=bs.length?bs[state.batch].map((x,i)=>`${i+1}. ${x}`).join("\n"):"尚無水號";
-}
-function prevBatch(){state.batch=Math.max(0,state.batch-1);renderBatch()}
-function nextBatch(){state.batch=Math.min(Math.max(0,batches().length-1),state.batch+1);renderBatch()}
-function xmlEsc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
-async function downloadODS(){
-  const rows=batches()[state.batch]||[];if(!rows.length){alert("目前沒有可下載的水號");return}
-  const content=`<?xml version="1.0" encoding="UTF-8"?>
-<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:version="1.2"><office:body><office:spreadsheet><table:table table:name="工作表1">
-<table:table-row><table:table-cell office:value-type="string"><text:p>No</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>查詢水號</text:p></table:table-cell></table:table-row>
-${Array.from({length:9},(_,i)=>`<table:table-row><table:table-cell office:value-type="float" office:value="${i+1}"><text:p>${i+1}</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>${xmlEsc(rows[i]||"")}</text:p></table:table-cell></table:table-row>`).join("")}
-</table:table></office:spreadsheet></office:body></office:document-content>`;
-  const zip=new JSZip();
-  zip.file("mimetype","application/vnd.oasis.opendocument.spreadsheet",{compression:"STORE"});
-  zip.file("content.xml",content);
-  zip.folder("META-INF").file("manifest.xml",`<?xml version="1.0" encoding="UTF-8"?><manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.2"><manifest:file-entry manifest:full-path="/" manifest:media-type="application/vnd.oasis.opendocument.spreadsheet"/><manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/></manifest:manifest>`);
-  const blob=await zip.generateAsync({type:"blob",mimeType:"application/vnd.oasis.opendocument.spreadsheet"});
-  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`台水查詢_第${state.batch+1}批.ods`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-}
-$("resultFile").addEventListener("change",async e=>{
-  const f=e.target.files[0];if(!f)return;
-  try{
-    const zip=await JSZip.loadAsync(f),xml=await zip.file("content.xml").async("string");
-    const doc=new DOMParser().parseFromString(xml,"text/xml");
-    const rows=[...doc.getElementsByTagNameNS("*","table-row")].map(r=>[...r.getElementsByTagNameNS("*","table-cell")].map(c=>[...c.getElementsByTagNameNS("*","p")].map(p=>p.textContent).join(" ")));
-    const flat=rows.map(r=>r.map(x=>x.trim()));
-    const out=[];
-    for(const r of flat){
-      const joined=r.join(" | ");
-      const water=findWater(joined);if(!water)continue;
-      const status=/已繳|銷帳/.test(joined)?"已繳":/未繳|欠費|應繳/.test(joined)?"未繳":"待確認";
-      const amount=(joined.match(/(?:應繳金額|金額)[:：\s]*([\d,]+)/)||[])[1]||"";
-      const period=(joined.match(/(20\d{2}[\/\-]\d{1,2}|民國?\s*\d{2,3}[\/\-]\d{1,2})/)||[])[1]||"";
-      const paid=(joined.match(/(?:銷帳日|繳費日)[:：\s]*([0-9\/\-]+)/)||[])[1]||"";
-      out.push({water,period,status,amount,paid,raw:joined});
-    }
-    state.results=out;renderResults();
-  }catch(err){alert("讀取 ODS 失敗："+err.message)}
-});
-function renderResults(){
-  $("resultStats").innerHTML=`<span class="pill">共 ${state.results.length} 筆</span><span class="pill">已繳 ${state.results.filter(x=>x.status==="已繳").length} 筆</span><span class="pill">未繳 ${state.results.filter(x=>x.status==="未繳").length} 筆</span>`;
-  $("resultBody").innerHTML=state.results.map(r=>`<tr><td>${esc(r.water)}</td><td>${esc(r.period)}</td><td class="${r.status==="已繳"?"ok":r.status==="未繳"?"bad":"warn"}">${esc(r.status)}</td><td>${esc(r.amount)}</td><td>${esc(r.paid)}</td></tr>`).join("");
-  $("resultWrap").classList.toggle("hidden",!state.results.length);$("csvBtn").classList.toggle("hidden",!state.results.length);
-}
-function exportCSV(){
-  const rows=[["水號","期別","狀態","金額","銷帳日"],...state.results.map(r=>[r.water,r.period,r.status,r.amount,r.paid])];
-  const csv="\ufeff"+rows.map(r=>r.map(v=>`"${String(v||"").replace(/"/g,'""')}"`).join(",")).join("\r\n");
-  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download="台水查繳費結果.csv";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-}
-function resetAll(){
-  if(!confirm("要清除所有照片與結果嗎？"))return;
-  state.photos.forEach(p=>URL.revokeObjectURL(p.url));state.photos=[];state.results=[];state.batch=0;$("ocrBar").style.width="0";render();renderResults();
-}
+function renderBatch(){const bs=batches();if(state.batch>=bs.length)state.batch=Math.max(0,bs.length-1);$("batchInfo").textContent=`第 ${bs.length?state.batch+1:0}／${bs.length} 批`;$("dedupeInfo").textContent=`去重後 ${waters().length} 筆`;$("batchBox").textContent=bs.length?bs[state.batch].map((x,i)=>`${i+1}. ${x}`).join("\n"):"尚無水號"}
+function prevBatch(){state.batch=Math.max(0,state.batch-1);renderBatch()}function nextBatch(){state.batch=Math.min(Math.max(0,batches().length-1),state.batch+1);renderBatch()}
+function xmlEsc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\"/g,"&quot;")}
+async function downloadODS(){const rows=batches()[state.batch]||[];if(!rows.length){alert("目前沒有可下載的水號");return}const content=`<?xml version="1.0" encoding="UTF-8"?><office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:version="1.2"><office:body><office:spreadsheet><table:table table:name="工作表1"><table:table-row><table:table-cell office:value-type="string"><text:p>No</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>查詢水號</text:p></table:table-cell></table:table-row>${Array.from({length:9},(_,i)=>`<table:table-row><table:table-cell office:value-type="float" office:value="${i+1}"><text:p>${i+1}</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>${xmlEsc(rows[i]||"")}</text:p></table:table-cell></table:table-row>`).join("")}</table:table></office:spreadsheet></office:body></office:document-content>`;const zip=new JSZip();zip.file("mimetype","application/vnd.oasis.opendocument.spreadsheet",{compression:"STORE"});zip.file("content.xml",content);zip.folder("META-INF").file("manifest.xml",`<?xml version="1.0" encoding="UTF-8"?><manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.2"><manifest:file-entry manifest:full-path="/" manifest:media-type="application/vnd.oasis.opendocument.spreadsheet"/><manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/></manifest:manifest>`);const blob=await zip.generateAsync({type:"blob",mimeType:"application/vnd.oasis.opendocument.spreadsheet"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`台水查詢_第${state.batch+1}批.ods`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+$("resultFile").addEventListener("change",async e=>{const f=e.target.files[0];if(!f)return;try{const zip=await JSZip.loadAsync(f),xml=await zip.file("content.xml").async("string"),doc=new DOMParser().parseFromString(xml,"text/xml"),rows=[...doc.getElementsByTagNameNS("*","table-row")].map(r=>[...r.getElementsByTagNameNS("*","table-cell")].map(c=>[...c.getElementsByTagNameNS("*","p")].map(p=>p.textContent).join(" ")));const out=[];for(const r of rows){const joined=r.join(" | "),water=findWaterInResult(joined);if(!water)continue;const status=/已繳|銷帳/.test(joined)?"已繳":/未繳|欠費|應繳/.test(joined)?"未繳":"待確認",amount=(joined.match(/(?:應繳金額|金額)[:：\s]*([\d,]+)/)||[])[1]||"",period=(joined.match(/(20\d{2}[\/\-]\d{1,2}|民國?\s*\d{2,3}[\/\-]\d{1,2})/)||[])[1]||"",paid=(joined.match(/(?:銷帳日|繳費日)[:：\s]*([0-9\/\-]+)/)||[])[1]||"";out.push({water,period,status,amount,paid})}state.results=out;renderResults()}catch(err){alert("讀取 ODS 失敗："+err.message)}});
+function renderResults(){$("resultStats").innerHTML=`<span class="pill">共 ${state.results.length} 筆</span><span class="pill">已繳 ${state.results.filter(x=>x.status==="已繳").length} 筆</span><span class="pill">未繳 ${state.results.filter(x=>x.status==="未繳").length} 筆</span>`;$("resultBody").innerHTML=state.results.map(r=>`<tr><td>${esc(r.water)}</td><td>${esc(r.period)}</td><td class="${r.status==="已繳"?"ok":r.status==="未繳"?"bad":"warn"}">${esc(r.status)}</td><td>${esc(r.amount)}</td><td>${esc(r.paid)}</td></tr>`).join("");$("resultWrap").classList.toggle("hidden",!state.results.length);$("csvBtn").classList.toggle("hidden",!state.results.length)}
+function exportCSV(){const rows=[["水號","期別","狀態","金額","銷帳日"],...state.results.map(r=>[r.water,r.period,r.status,r.amount,r.paid])],csv="\ufeff"+rows.map(r=>r.map(v=>`"${String(v||"").replace(/"/g,'""')}"`).join(",")).join("\r\n"),a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download="台水查繳費結果.csv";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function resetAll(){if(!confirm("要清除所有照片與結果嗎？"))return;for(const p of state.photos){URL.revokeObjectURL(p.url);if(p.cropUrl)URL.revokeObjectURL(p.cropUrl)}state.photos=[];state.results=[];state.batch=0;render();renderResults()}
 render();renderResults();
 </script>
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    const regs=await navigator.serviceWorker.getRegistrations();
-    for(const r of regs) await r.unregister();
-    navigator.serviceWorker.register('./sw.js?v=5').catch(()=>{});
-  });
-}
-</script></body>
-</html>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",async()=>{const regs=await navigator.serviceWorker.getRegistrations();for(const r of regs)await r.unregister();navigator.serviceWorker.register("./sw.js?v=6").catch(()=>{})})}</script>
+</body></html>
