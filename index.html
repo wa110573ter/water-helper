@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0f6cbd">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="台水查繳費">
-<title>台水查繳費助手 v11</title>
+<title>台水查繳費助手 v12</title>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
 :root{--bg:#f3f6fa;--card:#fff;--ink:#162033;--muted:#64748b;--line:#d8e1ec;--blue:#0f6cbd;--green:#11875d;--red:#b42318;--gold:#a15c00}
@@ -32,11 +32,11 @@ input[type=file]{display:none}.pick{flex:1 1 210px}
 .ok{color:var(--green);font-weight:800}.bad{color:var(--red);font-weight:800}.warn{color:var(--gold);font-weight:800}.hidden{display:none!important}
 @media(max-width:720px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.head{padding-top:calc(12px + env(safe-area-inset-top))}button,.btn{flex:1 1 auto}}
 </style>
-<link rel="manifest" href="manifest.webmanifest?v=11">
-<link rel="apple-touch-icon" href="icon-192.png?v=11">
+<link rel="manifest" href="manifest.webmanifest?v=12">
+<link rel="apple-touch-icon" href="icon-192.png?v=12">
 </head>
 <body>
-<header><div class="head"><div><h1>💧 台水查繳費助手</h1><div class="ver">v11｜捷徑 OCR 文字解析修正版</div></div><button class="gray" onclick="clearAll()">清除</button></div></header>
+<header><div class="head"><div><h1>💧 台水查繳費助手</h1><div class="ver">v12｜大量文字掃描修正版</div></div><button class="gray" onclick="clearAll()">清除</button></div></header>
 <main>
 <div class="grid">
 <section class="card">
@@ -44,7 +44,7 @@ input[type=file]{display:none}.pick{flex:1 1 210px}
 <textarea id="source" placeholder="捷徑完成後按「從剪貼簿貼上並整理」&#10;&#10;也可直接貼：&#10;5M-92-0958-00-6&#10;5M922473556&#10;姓名｜5M-92-3093-00-5"></textarea>
 <div class="row"><button class="primary" onclick="pasteAndParse()">📋 從剪貼簿貼上並整理</button><button class="soft" onclick="parseSource()">整理文字</button></div>
 <label class="btn gray pick">📄 匯入捷徑輸出的 TXT<input id="txtFile" type="file" accept=".txt,text/plain"></label>
-<div class="stats"><span class="pill" id="validStat">有效 0 筆</span><span class="pill" id="dupStat">重複 0 筆</span><span class="pill" id="invalidStat">無效 0 段</span></div>
+<div class="stats"><span class="pill" id="validStat">有效 0 筆</span><span class="pill" id="dupStat">重複 0 筆</span><span class="pill" id="invalidStat">無效 0 段</span><span class="pill" id="charStat">文字 0 字</span><span class="pill" id="prefixStat">5M 前綴 0 個</span></div>
 <div class="note good"><b>水號邏輯：</b><br>5M-92-0958-00-6 → <b>5M920958006</b><br>5M-92-2473-55-6 → <b>5M922473556</b><br>只接受含 5M 前綴的完整水號，不會把日期或其他九位數自動補成水號。</div>
 </section>
 
@@ -75,11 +75,13 @@ input[type=file]{display:none}.pick{flex:1 1 210px}
 
 <script>
 const KEY="water_helper_v10";
-const state={source:"",waters:[],duplicates:0,invalid:0,batch:0,results:[]};
+const state={source:"",waters:[],duplicates:0,invalid:0,chars:0,prefixes:0,batch:0,results:[]};
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
 
-function digitFix(ch){return ({O:"0",Q:"0",D:"0",I:"1",L:"1",T:"1",Z:"2",S:"5",B:"8",G:"6"}[ch]||ch)}
+function digitFix(ch){
+  return ({O:"0",Q:"0",D:"0",I:"1",L:"1",T:"1",Z:"2",S:"5",B:"8",G:"6"}[ch]||ch);
+}
 function normalizeBody(body){
   const a=String(body||"").toUpperCase().replace(/[^0-9A-Z]/g,"").split("");
   if(a.length!==9)return "";
@@ -96,67 +98,81 @@ function normalizeOCRText(text){
     .toUpperCase()
     .replace(/[Ｍｍ]/g,"M")
     .replace(/[５]/g,"5")
-    // 將 iPhone OCR 可能產生的各種橫線全部統一
-    .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212\uFE58\uFE63\uFF0D]/g,"-");
+    .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212\uFE58\uFE63\uFF0D\u30FC]/g,"-");
 }
-function parseWaterCandidate(segment){
-  let compact=normalizeOCRText(segment).replace(/[^0-9A-Z]/g,"");
-  const match=compact.match(/[5S][MNH]/);
-  if(!match)return "";
-  compact=compact.slice(match.index);
-  if(compact.length<11)return "";
+function extractWaterFromSegment(segment){
+  const s=normalizeOCRText(segment);
 
-  // 把 SM、5N、5H 等 OCR 誤判統一視為 5M。
-  const body=normalizeBody(compact.slice(2,11));
-  return body?("5M"+body):"";
+  // 固定格式：5M-92-0958-00-6。
+  // 只允許橫線、空格、冒號作為組間分隔，不會跨越整份文件亂抓數字。
+  const d="[0-9OQDILTZSBG]";
+  const sep="[ \\t\\-:：]*";
+  const re=new RegExp("[5S][ \\t]*[MNH]"+sep+
+    "("+d+"{2})"+sep+
+    "("+d+"{4})"+sep+
+    "("+d+"{2})"+sep+
+    "([0-9A-Z])","g");
+
+  const results=[];
+  for(const m of s.matchAll(re)){
+    const body=normalizeBody(m[1]+m[2]+m[3]+m[4]);
+    if(body)results.push("5M"+body);
+  }
+
+  // 已整理格式：5M920958006。
+  const compact=s.replace(/[^0-9A-Z]/g,"");
+  for(const m of compact.matchAll(/[5S][MNH]([0-9A-Z]{9})/g)){
+    const body=normalizeBody(m[1]);
+    if(body)results.push("5M"+body);
+  }
+  return results;
 }
 function collectWaters(text){
   const raw=normalizeOCRText(text);
-  const found=[];
+  const lines=raw.split(/\r\n|\n|\r/);
+  const occurrences=[];
   let prefixCount=0;
 
-  // 第一層：逐行找水號。這可直接處理：
-  // 5M-92-2473-55-6、5M‑92‑2473‑55‑6、5M 92 2473 55 6 等格式。
-  const lines=raw.split(/\r?\n/);
-  for(const line of lines){
-    if(/[5S]\s*[MNH]/.test(line)){
-      prefixCount++;
-      const water=parseWaterCandidate(line);
-      if(water)found.push(water);
+  // 每一行獨立處理，避免長篇 OCR 文字讓正規表示式跨到下一張照片。
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i];
+    if(/[5S][ \t]*[MNH]/.test(line))prefixCount++;
+    for(const water of extractWaterFromSegment(line)){
+      occurrences.push({water,key:`${i}:${water}`});
+    }
+
+    // 只在水號剛好被斷行時，額外嘗試「本行＋下一行」。
+    if(/[5S][ \t]*[MNH]/.test(line) && i+1<lines.length){
+      const joined=line+" "+lines[i+1];
+      for(const water of extractWaterFromSegment(joined)){
+        occurrences.push({water,key:`${i}-${i+1}:${water}`});
+      }
     }
   }
 
-  // 第二層：OCR 偶爾會把水號拆成相鄰兩行，合併兩行再嘗試。
-  for(let i=0;i<lines.length-1;i++){
-    const pair=lines[i]+" "+lines[i+1];
-    if(/[5S]\s*[MNH]/.test(pair)){
-      const water=parseWaterCandidate(pair);
-      if(water)found.push(water);
-    }
-  }
-
-  // 第三層：保留對已整理完成格式 5MXXXXXXXXX 的支援。
-  for(const m of raw.matchAll(/[5S]\s*[MNH](?:[^0-9A-Z]*[0-9A-Z]){9}/g)){
-    const water=parseWaterCandidate(m[0]);
-    if(water)found.push(water);
-  }
-
+  // 以水號去重；同一水號在同一份 OCR 中重複出現才計為重複。
   const unique=[],seen=new Set();
-  let dup=0;
-  for(const w of found){
-    if(seen.has(w))dup++;
-    else{seen.add(w);unique.push(w)}
+  let duplicates=0;
+  for(const item of occurrences){
+    if(seen.has(item.water))duplicates++;
+    else{
+      seen.add(item.water);
+      unique.push(item.water);
+    }
   }
+
   return {
     waters:unique,
-    duplicates:dup,
-    invalid:Math.max(0,prefixCount-unique.length)
+    duplicates,
+    invalid:Math.max(0,prefixCount-unique.length),
+    chars:raw.length,
+    prefixes:prefixCount
   };
 }
 function save(){localStorage.setItem(KEY,JSON.stringify({source:state.source,waters:state.waters,batch:state.batch}))}
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY)||"{}");state.source=s.source||"";state.waters=Array.isArray(s.waters)?s.waters:[];state.batch=s.batch||0;$("source").value=state.source}catch(e){}render()}
 async function pasteAndParse(){try{$("source").value=await navigator.clipboard.readText();parseSource()}catch(e){alert("Safari 無法直接讀取剪貼簿，請長按文字框後選「貼上」。")}}
-function parseSource(){state.source=$("source").value;const r=collectWaters(state.source);state.waters=r.waters;state.duplicates=r.duplicates;state.invalid=r.invalid;state.batch=0;save();render()}
+function parseSource(){state.source=$("source").value;const r=collectWaters(state.source);state.waters=r.waters;state.duplicates=r.duplicates;state.invalid=r.invalid;state.chars=r.chars;state.prefixes=r.prefixes;state.batch=0;save();render()}
 $("txtFile").addEventListener("change",async e=>{const f=e.target.files[0];if(!f)return;$("source").value=await f.text();parseSource();e.target.value=""});
 
 function batches(){const out=[];for(let i=0;i<state.waters.length;i+=9)out.push(state.waters.slice(i,i+9));return out}
@@ -165,6 +181,8 @@ function render(){
   $("validStat").textContent=`有效 ${state.waters.length} 筆`;
   $("dupStat").textContent=`重複 ${state.duplicates} 筆`;
   $("invalidStat").textContent=`無效 ${state.invalid} 段`;
+  $("charStat").textContent=`文字 ${state.chars||$("source").value.length} 字`;
+  $("prefixStat").textContent=`5M 前綴 ${state.prefixes} 個`;
   $("batchStat").textContent=`第 ${bs.length?state.batch+1:0}／${bs.length} 批`;
   $("batchBox").textContent=bs.length?bs[state.batch].map((x,i)=>`${i+1}. ${x}`).join("\n"):"尚無水號";
   $("waterList").innerHTML=state.waters.length?state.waters.map((w,i)=>`<div class="item"><span class="num">${i+1}</span><span class="water">${esc(w)}</span><span class="badge">有效</span></div>`).join(""):`<div class="item"><span class="num">—</span><span>尚無資料</span></div>`;
@@ -212,9 +230,9 @@ function renderResults(){
   $("resultWrap").classList.toggle("hidden",!state.results.length);$("csvBtn").classList.toggle("hidden",!state.results.length)
 }
 function exportCSV(){const rows=[["水號","期別","狀態","金額","銷帳日"],...state.results.map(r=>[r.water,r.period,r.status,r.amount,r.paid])],csv="\ufeff"+rows.map(r=>r.map(v=>`"${String(v||"").replace(/"/g,'""')}"`).join(",")).join("\r\n");downloadBlob(new Blob([csv],{type:"text/csv;charset=utf-8"}),"台水查繳費結果.csv")}
-function clearAll(){if(!confirm("要清除水號與查詢結果嗎？"))return;state.source="";state.waters=[];state.duplicates=0;state.invalid=0;state.batch=0;state.results=[];$("source").value="";localStorage.removeItem(KEY);render();renderResults()}
+function clearAll(){if(!confirm("要清除水號與查詢結果嗎？"))return;state.source="";state.waters=[];state.duplicates=0;state.invalid=0;state.chars=0;state.prefixes=0;state.batch=0;state.results=[];$("source").value="";localStorage.removeItem(KEY);render();renderResults()}
 load();renderResults();
 </script>
-<script>if("serviceWorker" in navigator){window.addEventListener("load",async()=>{const regs=await navigator.serviceWorker.getRegistrations();for(const r of regs)await r.unregister();navigator.serviceWorker.register("./sw.js?v=11").catch(()=>{})})}</script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",async()=>{const regs=await navigator.serviceWorker.getRegistrations();for(const r of regs)await r.unregister();navigator.serviceWorker.register("./sw.js?v=12").catch(()=>{})})}</script>
 </body>
 </html>
