@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0f6cbd">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="台水查繳費">
-<title>台水查繳費助手 v12</title>
+<title>台水查繳費助手 v13</title>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
 :root{--bg:#f3f6fa;--card:#fff;--ink:#162033;--muted:#64748b;--line:#d8e1ec;--blue:#0f6cbd;--green:#11875d;--red:#b42318;--gold:#a15c00}
@@ -32,20 +32,20 @@ input[type=file]{display:none}.pick{flex:1 1 210px}
 .ok{color:var(--green);font-weight:800}.bad{color:var(--red);font-weight:800}.warn{color:var(--gold);font-weight:800}.hidden{display:none!important}
 @media(max-width:720px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.head{padding-top:calc(12px + env(safe-area-inset-top))}button,.btn{flex:1 1 auto}}
 </style>
-<link rel="manifest" href="manifest.webmanifest?v=12">
-<link rel="apple-touch-icon" href="icon-192.png?v=12">
+<link rel="manifest" href="manifest.webmanifest?v=13">
+<link rel="apple-touch-icon" href="icon-192.png?v=13">
 </head>
 <body>
-<header><div class="head"><div><h1>💧 台水查繳費助手</h1><div class="ver">v12｜大量文字掃描修正版</div></div><button class="gray" onclick="clearAll()">清除</button></div></header>
+<header><div class="head"><div><h1>💧 台水查繳費助手</h1><div class="ver">v13｜Safari 完整貼上修正版</div></div><button class="gray" onclick="clearAll()">清除</button></div></header>
 <main>
 <div class="grid">
 <section class="card">
 <h2>1. 貼上捷徑辨識結果</h2>
-<textarea id="source" placeholder="捷徑完成後按「從剪貼簿貼上並整理」&#10;&#10;也可直接貼：&#10;5M-92-0958-00-6&#10;5M922473556&#10;姓名｜5M-92-3093-00-5"></textarea>
-<div class="row"><button class="primary" onclick="pasteAndParse()">📋 從剪貼簿貼上並整理</button><button class="soft" onclick="parseSource()">整理文字</button></div>
+<textarea id="source" onpaste="handleNativePaste(event)" oninput="updateInputStats()" placeholder="請點這個框，長按後選「貼上」；網站會接收完整 OCR 文字。&#10;&#10;也可直接貼：&#10;5M-92-0958-00-6&#10;5M922473556&#10;姓名｜5M-92-3093-00-5"></textarea>
+<div class="row"><button class="primary" onclick="focusForPaste()">📋 點文字框後長按貼上</button><button class="soft" onclick="parseSource()">整理文字</button></div>
 <label class="btn gray pick">📄 匯入捷徑輸出的 TXT<input id="txtFile" type="file" accept=".txt,text/plain"></label>
-<div class="stats"><span class="pill" id="validStat">有效 0 筆</span><span class="pill" id="dupStat">重複 0 筆</span><span class="pill" id="invalidStat">無效 0 段</span><span class="pill" id="charStat">文字 0 字</span><span class="pill" id="prefixStat">5M 前綴 0 個</span></div>
-<div class="note good"><b>水號邏輯：</b><br>5M-92-0958-00-6 → <b>5M920958006</b><br>5M-92-2473-55-6 → <b>5M922473556</b><br>只接受含 5M 前綴的完整水號，不會把日期或其他九位數自動補成水號。</div>
+<div class="stats"><span class="pill" id="validStat">有效 0 筆</span><span class="pill" id="dupStat">重複 0 筆</span><span class="pill" id="invalidStat">無效 0 段</span><span class="pill" id="charStat">文字 0 字</span><span class="pill" id="prefixStat">5M 前綴 0 個</span><span class="pill" id="pasteStat">貼上項目 —</span></div>
+<div class="note good"><b>重要：</b>不要再用網站自動讀取剪貼簿。iPhone 捷徑可能把多張 OCR 結果放成多個剪貼簿項目，Safari 自動讀取只會拿到其中一項。請在上方文字框<b>長按 → 貼上</b>。<br><br><b>水號邏輯：</b><br>5M-92-0958-00-6 → <b>5M920958006</b><br>5M-92-2473-55-6 → <b>5M922473556</b></div>
 </section>
 
 <section class="card">
@@ -75,7 +75,7 @@ input[type=file]{display:none}.pick{flex:1 1 210px}
 
 <script>
 const KEY="water_helper_v10";
-const state={source:"",waters:[],duplicates:0,invalid:0,chars:0,prefixes:0,batch:0,results:[]};
+const state={source:"",waters:[],duplicates:0,invalid:0,chars:0,prefixes:0,pasteItems:null,batch:0,results:[]};
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
 
@@ -171,7 +171,34 @@ function collectWaters(text){
 }
 function save(){localStorage.setItem(KEY,JSON.stringify({source:state.source,waters:state.waters,batch:state.batch}))}
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY)||"{}");state.source=s.source||"";state.waters=Array.isArray(s.waters)?s.waters:[];state.batch=s.batch||0;$("source").value=state.source}catch(e){}render()}
-async function pasteAndParse(){try{$("source").value=await navigator.clipboard.readText();parseSource()}catch(e){alert("Safari 無法直接讀取剪貼簿，請長按文字框後選「貼上」。")}}
+function focusForPaste(){
+  const box=$("source");
+  box.focus();
+  box.scrollIntoView({behavior:"smooth",block:"center"});
+}
+function updateInputStats(){
+  state.chars=$("source").value.length;
+  $("charStat").textContent=`文字 ${state.chars} 字`;
+}
+function handleNativePaste(e){
+  const box=$("source"),dt=e.clipboardData;
+  if(!dt){setTimeout(()=>{updateInputStats();parseSource()},0);return;}
+  const items=[...dt.items].filter(x=>x.kind==="string" && (!x.type || x.type==="text/plain"));
+  state.pasteItems=items.length||1;
+  $("pasteStat").textContent=`貼上項目 ${state.pasteItems}`;
+  if(items.length>1){
+    e.preventDefault();
+    Promise.all(items.map(item=>new Promise(resolve=>item.getAsString(resolve)))).then(parts=>{
+      const joined=parts.filter(Boolean).join("\n");
+      const start=box.selectionStart??box.value.length,end=box.selectionEnd??start;
+      box.value=box.value.slice(0,start)+joined+box.value.slice(end);
+      box.selectionStart=box.selectionEnd=start+joined.length;
+      updateInputStats();parseSource();
+    });
+  }else{
+    setTimeout(()=>{updateInputStats();parseSource()},0);
+  }
+}
 function parseSource(){state.source=$("source").value;const r=collectWaters(state.source);state.waters=r.waters;state.duplicates=r.duplicates;state.invalid=r.invalid;state.chars=r.chars;state.prefixes=r.prefixes;state.batch=0;save();render()}
 $("txtFile").addEventListener("change",async e=>{const f=e.target.files[0];if(!f)return;$("source").value=await f.text();parseSource();e.target.value=""});
 
@@ -183,6 +210,7 @@ function render(){
   $("invalidStat").textContent=`無效 ${state.invalid} 段`;
   $("charStat").textContent=`文字 ${state.chars||$("source").value.length} 字`;
   $("prefixStat").textContent=`5M 前綴 ${state.prefixes} 個`;
+  $("pasteStat").textContent=state.pasteItems===null?"貼上項目 —":`貼上項目 ${state.pasteItems}`;
   $("batchStat").textContent=`第 ${bs.length?state.batch+1:0}／${bs.length} 批`;
   $("batchBox").textContent=bs.length?bs[state.batch].map((x,i)=>`${i+1}. ${x}`).join("\n"):"尚無水號";
   $("waterList").innerHTML=state.waters.length?state.waters.map((w,i)=>`<div class="item"><span class="num">${i+1}</span><span class="water">${esc(w)}</span><span class="badge">有效</span></div>`).join(""):`<div class="item"><span class="num">—</span><span>尚無資料</span></div>`;
@@ -230,9 +258,9 @@ function renderResults(){
   $("resultWrap").classList.toggle("hidden",!state.results.length);$("csvBtn").classList.toggle("hidden",!state.results.length)
 }
 function exportCSV(){const rows=[["水號","期別","狀態","金額","銷帳日"],...state.results.map(r=>[r.water,r.period,r.status,r.amount,r.paid])],csv="\ufeff"+rows.map(r=>r.map(v=>`"${String(v||"").replace(/"/g,'""')}"`).join(",")).join("\r\n");downloadBlob(new Blob([csv],{type:"text/csv;charset=utf-8"}),"台水查繳費結果.csv")}
-function clearAll(){if(!confirm("要清除水號與查詢結果嗎？"))return;state.source="";state.waters=[];state.duplicates=0;state.invalid=0;state.chars=0;state.prefixes=0;state.batch=0;state.results=[];$("source").value="";localStorage.removeItem(KEY);render();renderResults()}
+function clearAll(){if(!confirm("要清除水號與查詢結果嗎？"))return;state.source="";state.waters=[];state.duplicates=0;state.invalid=0;state.chars=0;state.prefixes=0;state.pasteItems=null;state.batch=0;state.results=[];$("source").value="";localStorage.removeItem(KEY);render();renderResults()}
 load();renderResults();
 </script>
-<script>if("serviceWorker" in navigator){window.addEventListener("load",async()=>{const regs=await navigator.serviceWorker.getRegistrations();for(const r of regs)await r.unregister();navigator.serviceWorker.register("./sw.js?v=12").catch(()=>{})})}</script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",async()=>{const regs=await navigator.serviceWorker.getRegistrations();for(const r of regs)await r.unregister();navigator.serviceWorker.register("./sw.js?v=13").catch(()=>{})})}</script>
 </body>
 </html>
