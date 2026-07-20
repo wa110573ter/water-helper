@@ -1,10 +1,236 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>台水查繳費助手 v14</title><script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script><style>
-:root{--b:#0f6cbd;--g:#11875d;--bg:#f3f6fa;--line:#d8e1ec;--ink:#162033}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif}header{position:sticky;top:0;background:#f3f6faf2;border-bottom:1px solid var(--line);z-index:5}header div,main{max-width:900px;margin:auto}header div{padding:15px}h1{font-size:22px;margin:0}.ver{font-size:13px;color:#64748b}.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px;margin:14px 12px}.row{display:flex;gap:9px;flex-wrap:wrap;margin-top:10px}button,.btn{border:0;border-radius:12px;padding:12px 14px;font-size:16px;font-weight:750;min-height:46px;background:#e9f2fb;color:#0b5797}.primary{background:var(--b);color:#fff}.green{background:var(--g);color:#fff}.gold{background:#fff0d7;color:#7a4300;text-decoration:none;display:inline-flex;align-items:center}.gray{background:#eef1f5;color:#334155}textarea{width:100%;height:220px;border:1px solid var(--line);border-radius:13px;padding:12px;font-size:15px;line-height:1.45}input[type=file]{display:none}.pick{display:inline-flex;align-items:center}.stats{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}.pill{background:#eef3f8;padding:7px 10px;border-radius:999px;font-size:14px}.note{background:#fff7e6;border:1px solid #eed39b;border-radius:12px;padding:11px;color:#744700;line-height:1.5}.batch{background:#0f172a;color:#e2e8f0;border-radius:13px;padding:14px;min-height:110px;white-space:pre-wrap;font:16px ui-monospace,monospace;line-height:1.65}.list{border:1px solid var(--line);border-radius:13px;overflow:hidden}.item{padding:10px;border-bottom:1px solid var(--line);font:17px ui-monospace,monospace}.item:last-child{border:0}@media(max-width:600px){button,.btn{flex:1 1 auto}header div{padding-top:calc(14px + env(safe-area-inset-top))}}
-</style></head><body><header><div><h1>💧 台水查繳費助手</h1><div class="ver">v14｜直接讀取全部剪貼簿項目</div></div></header><main>
-<section class="card"><h2>1. 匯入捷徑 OCR 文字</h2><textarea id="src" onpaste="nativePaste(event)" placeholder="先按『讀取全部剪貼簿項目』；或在此長按貼上。"></textarea><div class="row"><button class="primary" onclick="readAll()">📋 讀取全部剪貼簿項目</button><button onclick="parse()">整理文字</button><label class="btn gray pick">📄 匯入 TXT<input id="txt" type="file" accept=".txt,text/plain"></label><button class="gray" onclick="clearAll()">清除</button></div><div class="stats"><span class="pill" id="chars">文字 0 字</span><span class="pill" id="clip">剪貼簿 —</span><span class="pill" id="prefix">5M 前綴 0 個</span><span class="pill" id="valid">有效 0 筆</span></div><div class="note">按鈕會使用 <b>navigator.clipboard.read()</b> 逐一讀取 ClipboardItem，再合併所有可讀文字。若 Safari 仍只提供一項，可使用「匯入 TXT」。</div></section>
-<section class="card"><h2>2. 水號結果</h2><div id="list" class="list"><div class="item">尚無資料</div></div></section>
-<section class="card"><h2>3. 每批 9 筆</h2><div class="stats"><span class="pill" id="batchStat">第 0／0 批</span></div><div id="batch" class="batch">尚無水號</div><div class="row"><button onclick="prev()">上一批</button><button onclick="next()">下一批</button><button class="green" onclick="ods()">📥 下載本批 ODS</button><a class="btn gold" href="https://www.water.gov.tw/ch/EQuery/WaterFeeQuery?nodeId=753" target="_blank">🌐 台水查詢頁</a></div></section>
-</main><script>
-const S={waters:[],batch:0};const $=x=>document.getElementById(x);function fix(c){return({O:'0',Q:'0',D:'0',I:'1',L:'1',T:'1',Z:'2',S:'5',B:'8',G:'6'}[c]||c)}function norm(t){return String(t||'').normalize('NFKC').toUpperCase().replace(/[Ｍｍ]/g,'M').replace(/[５]/g,'5').replace(/[‐‑‒–—―−﹘﹣－ー]/g,'-')}function body(s){let a=String(s).replace(/[^0-9A-Z]/g,'').split('');if(a.length!==9)return'';for(let i=0;i<8;i++){a[i]=fix(a[i]);if(!/\d/.test(a[i]))return''}a[8]=({O:'0',I:'1',L:'1'}[a[8]]||a[8]);return/[0-9A-Z]/.test(a[8])?a.join(''):''}function lineWater(line){let s=norm(line),d='[0-9OQDILTZSBG]',q='[ \\t\\-:：]*',r=new RegExp('[5S][ \\t]*[MNH]'+q+'('+d+'{2})'+q+'('+d+'{4})'+q+'('+d+'{2})'+q+'([0-9A-Z])'),m=s.match(r);if(m){let b=body(m[1]+m[2]+m[3]+m[4]);if(b)return'5M'+b}let c=s.replace(/[^0-9A-Z]/g,''),n=c.match(/[5S][MNH]([0-9A-Z]{9})/);if(n){let b=body(n[1]);if(b)return'5M'+b}return''}function collect(t){let raw=norm(t),ls=raw.split(/\r\n|\n|\r/),out=[],p=0;for(let i=0;i<ls.length;i++){let has=/[5S][ \\t]*[MNH]/.test(ls[i]);if(has)p++;let w=lineWater(ls[i]);if(!w&&has&&i+1<ls.length)w=lineWater(ls[i]+' '+ls[i+1]);if(w)out.push(w)}return{waters:[...new Set(out)],prefix:p,chars:raw.length}}
-async function readAll(){try{if(!navigator.clipboard?.read)throw Error('Safari 不支援 clipboard.read');let items=await navigator.clipboard.read(),parts=[],typeInfo=[];for(let item of items){typeInfo.push(item.types.join(','));let txt='';for(let type of ['text/plain','text/html',...item.types.filter(x=>x.startsWith('text/'))]){if(!item.types.includes(type))continue;try{let blob=await item.getType(type);txt=await blob.text();if(type==='text/html'){let d=new DOMParser().parseFromString(txt,'text/html');txt=d.body.innerText||d.body.textContent||''}if(txt)break}catch{}}if(txt)parts.push(txt)}$('clip').textContent=`剪貼簿 ${items.length} 項／文字 ${parts.length} 段`;$('src').value=parts.join('\n');parse();if($('src').value.length<1000)alert(`Safari 目前只提供 ${$('src').value.length} 字。若原始內容更多，請改用 TXT 匯入。`)}catch(e){alert('讀取失敗：'+e.message+'。請允許貼上，或改用 TXT 匯入。')}}function nativePaste(){setTimeout(parse,0)}function parse(){let r=collect($('src').value);S.waters=r.waters;S.batch=0;$('chars').textContent=`文字 ${r.chars} 字`;$('prefix').textContent=`5M 前綴 ${r.prefix} 個`;$('valid').textContent=`有效 ${r.waters.length} 筆`;render()}function render(){let bs=[];for(let i=0;i<S.waters.length;i+=9)bs.push(S.waters.slice(i,i+9));if(S.batch>=bs.length)S.batch=Math.max(0,bs.length-1);$('list').innerHTML=S.waters.length?S.waters.map((w,i)=>`<div class="item">${i+1}. ${w}</div>`).join(''):'<div class="item">尚無資料</div>';$('batchStat').textContent=`第 ${bs.length?S.batch+1:0}／${bs.length} 批`;$('batch').textContent=bs.length?bs[S.batch].map((w,i)=>`${i+1}. ${w}`).join('\n'):'尚無水號'}function prev(){S.batch=Math.max(0,S.batch-1);render()}function next(){let n=Math.ceil(S.waters.length/9);S.batch=Math.min(Math.max(0,n-1),S.batch+1);render()}function clearAll(){$('src').value='';S.waters=[];S.batch=0;$('clip').textContent='剪貼簿 —';parse()}$('txt').onchange=async e=>{let f=e.target.files[0];if(f){$('src').value=await f.text();$('clip').textContent='TXT 匯入';parse()}e.target.value=''};function dl(blob,name){let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}async function ods(){let rows=S.waters.slice(S.batch*9,S.batch*9+9);if(!rows.length)return alert('本批沒有水號');let content=`<?xml version="1.0" encoding="UTF-8"?><office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:version="1.2"><office:body><office:spreadsheet><table:table table:name="工作表1"><table:table-row><table:table-cell office:value-type="string"><text:p>No</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>查詢水號</text:p></table:table-cell></table:table-row>${Array.from({length:9},(_,i)=>`<table:table-row><table:table-cell office:value-type="float" office:value="${i+1}"><text:p>${i+1}</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>${esc(rows[i]||'')}</text:p></table:table-cell></table:table-row>`).join('')}</table:table></office:spreadsheet></office:body></office:document-content>`;let z=new JSZip();z.file('mimetype','application/vnd.oasis.opendocument.spreadsheet',{compression:'STORE'});z.file('content.xml',content);z.folder('META-INF').file('manifest.xml','<?xml version="1.0" encoding="UTF-8"?><manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.2"><manifest:file-entry manifest:full-path="/" manifest:media-type="application/vnd.oasis.opendocument.spreadsheet"/><manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/></manifest:manifest>');dl(await z.generateAsync({type:'blob'}),`台水查詢_第${S.batch+1}批.ods`)}render();
-</script></body></html>
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0f6cbd">
+  <title>門牌批次定位導航助手</title>
+  <style>
+    :root{--b:#0f6cbd;--g:#11875d;--r:#c2410c;--bg:#f3f6fa;--line:#d8e1ec;--ink:#162033;--muted:#64748b}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif}
+    header{position:sticky;top:0;z-index:10;background:#f3f6faf2;border-bottom:1px solid var(--line);backdrop-filter:blur(10px)}
+    header>div,main{max-width:1100px;margin:auto}
+    header>div{padding:14px 16px}
+    h1{font-size:22px;margin:0}.ver{color:var(--muted);font-size:13px;margin-top:3px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px;margin:14px 12px;box-shadow:0 2px 8px #0f172a0a}
+    h2{font-size:18px;margin:0 0 12px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    label{font-weight:700;font-size:14px}
+    input,textarea,select{width:100%;margin-top:5px;border:1px solid #bdc9d8;border-radius:12px;padding:11px;font-size:16px;background:#fff}
+    textarea{height:215px;line-height:1.55;resize:vertical}
+    .row{display:flex;gap:9px;flex-wrap:wrap;margin-top:11px}
+    button,.btn{border:0;border-radius:12px;padding:11px 14px;font-size:15px;font-weight:750;min-height:44px;background:#e9f2fb;color:#0b5797;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    .primary{background:var(--b);color:#fff}.green{background:var(--g);color:#fff}.orange{background:#ffedd5;color:#9a3412}.gray{background:#eef1f5;color:#334155}
+    .note{background:#fff7e6;border:1px solid #eed39b;border-radius:12px;padding:11px;color:#744700;line-height:1.5;font-size:14px}
+    .stats{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}.pill{background:#eef3f8;padding:7px 10px;border-radius:999px;font-size:14px}
+    .progress{height:10px;background:#e7edf4;border-radius:999px;overflow:hidden}.progress>div{height:100%;width:0;background:var(--b);transition:.2s}
+    .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:13px}
+    table{width:100%;border-collapse:collapse;min-width:950px}
+    th,td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top;text-align:left;font-size:14px}
+    th{position:sticky;top:0;background:#edf4fb;z-index:1}
+    tr.ok{background:#f0fdf4}tr.fail{background:#fff7ed}
+    .status{font-weight:700}.small{font-size:12px;color:var(--muted)}
+    .nav{white-space:nowrap}.nav a{display:inline-block;padding:7px 9px;border-radius:9px;background:#e8f2ff;color:#075a9c;text-decoration:none;font-weight:700}
+    .hide{display:none!important}
+    footer{max-width:1100px;margin:15px auto 30px;padding:0 16px;color:var(--muted);font-size:12px}
+    @media(max-width:700px){.grid{grid-template-columns:1fr}.card{margin:10px 8px;padding:13px}button,.btn{flex:1 1 auto}header>div{padding-top:calc(13px + env(safe-area-inset-top))}}
+  </style>
+</head>
+<body>
+<header><div><h1>📍 門牌批次定位導航助手</h1><div class="ver">TGOS 門牌定位 → WGS84 經緯度 → Google Maps 導航</div></div></header>
+<main>
+  <section class="card">
+    <h2>1. TGOS 金鑰設定</h2>
+    <div class="grid">
+      <label>APP ID<input id="appId" autocomplete="off" placeholder="貼上 TGOS APP ID"></label>
+      <label>API Key<input id="apiKey" type="password" autocomplete="off" placeholder="貼上 TGOS API Key"></label>
+    </div>
+    <div class="row">
+      <button class="primary" onclick="loadTgos()">連線 TGOS</button>
+      <button class="gray" onclick="toggleKey()">顯示／隱藏 Key</button>
+      <button class="gray" onclick="forgetKey()">清除本機金鑰</button>
+    </div>
+    <div class="stats"><span class="pill" id="apiState">尚未連線</span></div>
+    <div class="note">本工具不把金鑰寫入 ZIP。按「連線 TGOS」後，瀏覽器會記住金鑰。公開部署時，請在 TGOS 後台將金鑰限制為你的 GitHub Pages 網域。</div>
+  </section>
+
+  <section class="card">
+    <h2>2. 貼上地址資料</h2>
+    <textarea id="src" placeholder="每行一筆，可使用以下任一格式：
+地址
+水號[TAB]姓名[TAB]地址
+水號,姓名,地址
+
+例如：
+5M912044008	蘇秋菊	雲林縣虎尾鎮新興里新興路76-1號"></textarea>
+    <div class="row">
+      <button onclick="parseInput()">整理資料</button>
+      <button class="gray" onclick="example()">載入範例</button>
+      <label class="btn gray">匯入 CSV／TXT<input id="file" type="file" accept=".csv,.txt,text/csv,text/plain" hidden></label>
+      <button class="gray" onclick="clearAll()">清除</button>
+    </div>
+    <div class="stats">
+      <span class="pill" id="rowCount">0 筆</span>
+      <span class="pill" id="okCount">成功 0</span>
+      <span class="pill" id="failCount">待處理 0</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>3. 批次取得經緯度</h2>
+    <div class="grid">
+      <label>每筆間隔
+        <select id="delay"><option value="500">0.5 秒</option><option value="800" selected>0.8 秒</option><option value="1200">1.2 秒</option><option value="2000">2 秒</option></select>
+      </label>
+      <label>地址前綴（地址未寫縣市時使用）<input id="prefix" value="雲林縣" placeholder="例如：雲林縣"></label>
+    </div>
+    <div class="row">
+      <button class="primary" id="runBtn" onclick="startBatch()">開始批次定位</button>
+      <button class="orange" id="stopBtn" onclick="stopBatch()" disabled>停止</button>
+      <button onclick="retryFailed()">重試失敗項目</button>
+    </div>
+    <div class="progress"><div id="bar"></div></div>
+    <div class="small" id="progressText" style="margin-top:7px">尚未開始</div>
+  </section>
+
+  <section class="card">
+    <h2>4. 結果與導航</h2>
+    <div class="row">
+      <button class="green" onclick="downloadCsv()">下載 CSV</button>
+      <button class="green" onclick="downloadKml()">下載 KML</button>
+      <button onclick="copyNavLinks()">複製導航連結</button>
+    </div>
+    <div class="table-wrap" style="margin-top:12px">
+      <table>
+        <thead><tr><th>#</th><th>水號</th><th>姓名</th><th>輸入地址</th><th>比對地址</th><th>緯度</th><th>經度</th><th>狀態</th><th>導航</th></tr></thead>
+        <tbody id="tbody"><tr><td colspan="9">尚無資料</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<footer>定位結果可能為模糊比對。外勤前請核對「輸入地址」與「比對地址」，不要只看經緯度。</footer>
+
+<script>
+const S={rows:[],running:false,stop:false,locator:null};
+const $=id=>document.getElementById(id);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clean=s=>String(s??'').normalize('NFKC').replace(/[　]/g,' ').trim();
+const csvCell=s=>'"'+String(s??'').replace(/"/g,'""')+'"';
+
+function init(){
+  $('appId').value=localStorage.getItem('tgos_appid')||'';
+  $('apiKey').value=localStorage.getItem('tgos_apikey')||'';
+}
+function toggleKey(){$('apiKey').type=$('apiKey').type==='password'?'text':'password'}
+function forgetKey(){localStorage.removeItem('tgos_appid');localStorage.removeItem('tgos_apikey');$('appId').value='';$('apiKey').value='';$('apiState').textContent='已清除本機金鑰'}
+function loadTgos(){
+  const id=$('appId').value.trim(), key=$('apiKey').value.trim();
+  if(!id||!key)return alert('請先輸入 APP ID 與 API Key');
+  localStorage.setItem('tgos_appid',id); localStorage.setItem('tgos_apikey',key);
+  $('apiState').textContent='TGOS 載入中…';
+  document.querySelectorAll('script[data-tgos]').forEach(x=>x.remove());
+  const s=document.createElement('script'); s.dataset.tgos='1'; s.charset='utf-8';
+  s.src='https://api.tgos.tw/TGOS_API/tgos?ver=2&AppID='+encodeURIComponent(id)+'&APIKey='+encodeURIComponent(key)+'&_='+Date.now();
+  s.onload=()=>{try{S.locator=new TGOS.TGLocateService();$('apiState').textContent='✅ TGOS 已連線'}catch(e){$('apiState').textContent='❌ TGOS 初始化失敗';alert(e.message)}};
+  s.onerror=()=>{$('apiState').textContent='❌ TGOS 載入失敗';alert('TGOS 載入失敗。請檢查金鑰、網站網域授權與網路連線。')};
+  document.head.appendChild(s);
+}
+function splitLine(line){
+  let p=line.includes('\t')?line.split('\t'):line.split(',');
+  p=p.map(clean).filter((v,i,a)=>v!==''||i<a.length-1);
+  if(p.length>=3)return{water:p[0],name:p[1],address:p.slice(2).join(line.includes('\t')?' ':',')};
+  if(p.length===2){
+    if(/^5[A-Z]/i.test(p[0].replace(/\W/g,'')))return{water:p[0],name:'',address:p[1]};
+    return{water:'',name:p[0],address:p[1]};
+  }
+  return{water:'',name:'',address:clean(line)};
+}
+function parseInput(){
+  const lines=$('src').value.split(/\r?\n/).map(clean).filter(Boolean);
+  S.rows=lines.map((line,i)=>({id:i+1,...splitLine(line),matched:'',lat:'',lng:'',status:'待定位',error:''}));
+  render();
+}
+function example(){
+  $('src').value='5M912044008\t蘇秋菊\t雲林縣虎尾鎮新興里新興路76-1號\n5M91219300K\t林炳文\t雲林縣虎尾鎮新興里中正路45號\n\t\t雲林縣虎尾鎮新興里新興路50號';
+  parseInput();
+}
+function clearAll(){S.rows=[];$('src').value='';render()}
+$('file').onchange=async e=>{const f=e.target.files[0];if(f){$('src').value=await f.text();parseInput()}e.target.value=''};
+
+function normalizedAddress(a){
+  let x=clean(a).replace(/\s+/g,'').replace(/台/g,'臺');
+  const prefix=clean($('prefix').value);
+  if(prefix&&!/^(臺|台)?(北|中|南|東)|^新北|^桃園|^基隆|^新竹|^苗栗|^彰化|^南投|^雲林|^嘉義|^高雄|^屏東|^宜蘭|^花蓮|^澎湖|^金門|^連江/.test(x))x=prefix+x;
+  return x;
+}
+function locateOne(address){
+  return new Promise(resolve=>{
+    if(!S.locator)return resolve({ok:false,error:'TGOS 尚未連線'});
+    const timer=setTimeout(()=>resolve({ok:false,error:'查詢逾時'}),15000);
+    try{
+      S.locator.locateWGS84({address:normalizedAddress(address)},(results,status)=>{
+        clearTimeout(timer);
+        try{
+          if(status!==TGOS.TGLocatorStatus.OK||!results||!results.length)return resolve({ok:false,error:'查無結果：'+String(status)});
+          const r=results[0], p=r.geometry&&r.geometry.location;
+          if(!p||!Number.isFinite(Number(p.x))||!Number.isFinite(Number(p.y)))return resolve({ok:false,error:'回傳座標格式異常'});
+          resolve({ok:true,lng:Number(p.x),lat:Number(p.y),matched:r.formattedAddress||r.address||''});
+        }catch(e){resolve({ok:false,error:e.message})}
+      });
+    }catch(e){clearTimeout(timer);resolve({ok:false,error:e.message})}
+  });
+}
+async function startBatch(filterFailed=false){
+  if(S.running)return;
+  if(!S.rows.length)parseInput();
+  if(!S.rows.length)return alert('請先貼上地址資料');
+  if(!S.locator)return alert('請先按「連線 TGOS」');
+  S.running=true;S.stop=false;$('runBtn').disabled=true;$('stopBtn').disabled=false;
+  const targets=S.rows.filter(r=>filterFailed?(!r.lat||!r.lng):r.status!=='成功');
+  let done=0;
+  for(const r of targets){
+    if(S.stop)break;
+    r.status='查詢中';r.error='';render();
+    const out=await locateOne(r.address);
+    if(out.ok){Object.assign(r,{lat:out.lat.toFixed(7),lng:out.lng.toFixed(7),matched:out.matched,status:'成功',error:''})}
+    else{Object.assign(r,{status:'失敗',error:out.error})}
+    done++;$('bar').style.width=(done/targets.length*100)+'%';$('progressText').textContent=`已處理 ${done}／${targets.length}：${r.address}`;
+    render(); if(done<targets.length)await sleep(Number($('delay').value));
+  }
+  S.running=false;$('runBtn').disabled=false;$('stopBtn').disabled=true;
+  $('progressText').textContent=S.stop?'已停止，可稍後繼續':'批次定位完成';
+}
+function stopBatch(){S.stop=true;$('progressText').textContent='正在停止…'}
+function retryFailed(){startBatch(true)}
+function navUrl(r){return r.lat&&r.lng?'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(r.lat+','+r.lng)+'&travelmode=driving':''}
+function render(){
+  const ok=S.rows.filter(r=>r.status==='成功').length, fail=S.rows.length-ok;
+  $('rowCount').textContent=S.rows.length+' 筆';$('okCount').textContent='成功 '+ok;$('failCount').textContent='待處理 '+fail;
+  $('tbody').innerHTML=S.rows.length?S.rows.map((r,i)=>`<tr class="${r.status==='成功'?'ok':r.status==='失敗'?'fail':''}">
+  <td>${i+1}</td><td>${esc(r.water)}</td><td>${esc(r.name)}</td><td>${esc(r.address)}</td><td>${esc(r.matched)}</td>
+  <td>${esc(r.lat)}</td><td>${esc(r.lng)}</td><td><span class="status">${esc(r.status)}</span>${r.error?'<div class="small">'+esc(r.error)+'</div>':''}</td>
+  <td class="nav">${navUrl(r)?'<a target="_blank" rel="noopener" href="'+navUrl(r)+'">Google Maps</a>':'—'}</td></tr>`).join(''):'<tr><td colspan="9">尚無資料</td></tr>';
+}
+function download(data,name,type){const b=new Blob([data],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function downloadCsv(){
+  if(!S.rows.length)return alert('沒有資料');
+  const head=['順序','水號','姓名','輸入地址','比對地址','緯度','經度','狀態','Google Maps導航'];
+  const rows=S.rows.map((r,i)=>[i+1,r.water,r.name,r.address,r.matched,r.lat,r.lng,r.status,navUrl(r)]);
+  download('\ufeff'+[head,...rows].map(x=>x.map(csvCell).join(',')).join('\r\n'),'門牌定位結果.csv','text/csv;charset=utf-8');
+}
+function downloadKml(){
+  const rows=S.rows.filter(r=>r.lat&&r.lng);if(!rows.length)return alert('尚無成功定位資料');
+  const xml=`<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>門牌定位結果</name>${rows.map((r,i)=>`<Placemark><name>${esc((i+1)+'. '+(r.name||r.address))}</name><description><![CDATA[水號：${r.water}<br>輸入地址：${r.address}<br>比對地址：${r.matched}]]></description><Point><coordinates>${r.lng},${r.lat},0</coordinates></Point></Placemark>`).join('')}</Document></kml>`;
+  download(xml,'門牌定位結果.kml','application/vnd.google-earth.kml+xml;charset=utf-8');
+}
+async function copyNavLinks(){
+  const text=S.rows.filter(r=>navUrl(r)).map((r,i)=>`${i+1}. ${r.name||r.address}\n${navUrl(r)}`).join('\n\n');
+  if(!text)return alert('尚無成功定位資料');
+  try{await navigator.clipboard.writeText(text);alert('已複製導航連結')}catch{prompt('請複製以下內容',text)}
+}
+init();render();
+</script>
+</body></html>
